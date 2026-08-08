@@ -233,6 +233,43 @@
             transform: translateY(-4px) scale(1.02);
         }
 
+        .btn-ranked {
+    background: linear-gradient(135deg, #4e1a4e 0%, #7e2a7e 50%, #ae3aae 100%);
+    border-color: #cc44cc;
+    color: #ffddff;
+    position: relative;
+}
+.btn-ranked::after {
+    content: '🔴 LIVE';
+    position: absolute;
+    top: -8px;
+    right: 12px;
+    background: linear-gradient(135deg, #ff0044, #ff4488);
+    color: white;
+    font-size: 0.55rem;
+    font-weight: 900;
+    padding: 3px 8px;
+    border-radius: 10px;
+    letter-spacing: 1.5px;
+    box-shadow: 0 0 10px rgba(255,0,68,0.6);
+    animation: livePulse 1.5s infinite;
+}
+@keyframes livePulse {
+    0%,100% { transform: scale(1); box-shadow: 0 0 10px rgba(255,0,68,0.6); }
+    50% { transform: scale(1.1); box-shadow: 0 0 20px rgba(255,0,68,1); }
+}
+.btn-ranked .btn-icon {
+    background: linear-gradient(135deg, #cc44cc, #ee66ee);
+    color: #ffffff;
+}
+.btn-ranked:hover {
+    background: linear-gradient(135deg, #7e2a7e 0%, #ae3aae 50%, #ce4ace 100%);
+    border-color: #ff88ff;
+    color: #ffffff;
+    box-shadow: 0 8px 35px rgba(204,68,204,0.6), inset 0 0 20px rgba(255,136,255,0.15);
+    transform: translateY(-4px) scale(1.02);
+}
+
         .btn-history {
             background: linear-gradient(135deg, #1a4e2a 0%, #2a7e3a 50%, #3a9e4a 100%);
             border-color: #44cc66;
@@ -301,6 +338,250 @@
             .btn-subtitle { font-size: 0.6rem; }
             .btn-arrow { font-size: 1.2rem; }
             .points-display { font-size: 0.85rem; padding: 10px 25px; }
+        }
+                /* ============ RANKED SCREEN ============ */
+        #ranked-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            background: radial-gradient(ellipse at center, #2e1a4e 0%, #0a0a1a 70%);
+            padding: 60px 20px 40px 20px;
+            overflow-y: auto;
+        }
+
+        .ranked-container {
+            width: 100%;
+            max-width: 550px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .ranked-header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .ranked-logo {
+            font-size: 4rem;
+            animation: floatLogo 3s infinite;
+            filter: drop-shadow(0 0 25px rgba(255,215,0,0.6));
+        }
+
+        .ranked-subtitle {
+            font-family: 'Orbitron', sans-serif;
+            color: #cc88ff;
+            letter-spacing: 4px;
+            font-size: 0.75rem;
+            margin-bottom: 20px;
+        }
+
+        .ranked-panel {
+            width: 100%;
+            background: rgba(30,15,60,0.85);
+            border: 2px solid rgba(200,100,255,0.3);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(150,50,200,0.2);
+        }
+
+        .ranked-panel-title {
+            font-family: 'Orbitron', sans-serif;
+            color: #ffd700;
+            text-align: center;
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .ranked-info-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .ranked-info-card {
+            background: rgba(60,30,100,0.6);
+            border: 1px solid rgba(200,100,255,0.3);
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+
+        .ranked-info-icon {
+            font-size: 1.6rem;
+            margin-bottom: 5px;
+        }
+
+        .ranked-info-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            color: #ffd700;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .ranked-info-desc {
+            font-size: 0.65rem;
+            color: #cccddd;
+            margin-top: 3px;
+        }
+
+        .ranked-mode-select {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .ranked-mode-btn {
+            padding: 18px 15px;
+            background: linear-gradient(135deg, rgba(80,30,120,0.9), rgba(120,50,180,0.9));
+            border: 2px solid rgba(200,100,255,0.5);
+            border-radius: 15px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .ranked-mode-btn:hover {
+            background: linear-gradient(135deg, rgba(120,50,180,0.9), rgba(160,80,220,0.9));
+            border-color: rgba(255,150,255,0.8);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(200,100,255,0.4);
+        }
+
+        .rmb-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .rmb-title {
+            font-size: 0.85rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .rmb-desc {
+            font-size: 0.65rem;
+            color: #ccbbdd;
+            letter-spacing: 1px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 500;
+        }
+
+        .waiting-animation {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+        }
+
+        .waiting-spinner {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            border: 4px solid rgba(255,215,0,0.2);
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .waiting-chess {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            font-size: 3rem;
+            animation: chessBob 1.5s infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes chessBob {
+            0%,100% { transform: translate(-50%,-50%) scale(1); }
+            50% { transform: translate(-50%,-60%) scale(1.1); }
+        }
+
+        .waiting-info {
+            text-align: center;
+            color: #ccbbdd;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .waiting-timer {
+            text-align: center;
+            color: #ffd700;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            margin-bottom: 15px;
+        }
+
+        .room-code-label {
+            text-align: center;
+            color: #ffd700;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 3px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+
+        .room-code-value {
+            text-align: center;
+            font-family: 'Orbitron', monospace;
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #ffffff;
+            letter-spacing: 8px;
+            background: rgba(0,0,0,0.4);
+            border: 3px dashed #ffd700;
+            border-radius: 15px;
+            padding: 15px;
+            margin: 10px 0 15px;
+            text-shadow: 0 0 20px rgba(255,215,0,0.5);
+        }
+
+        .copy-code-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #1a1a1a;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+
+        .copy-code-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255,215,0,0.4);
+        }
+
+        @media (max-width: 768px) {
+            .ranked-info-cards { gap: 6px; }
+            .ranked-info-card { padding: 8px 5px; }
+            .ranked-info-icon { font-size: 1.3rem; }
+            .ranked-info-title { font-size: 0.6rem; }
+            .ranked-info-desc { font-size: 0.55rem; }
+            .rmb-icon { font-size: 1.6rem; }
+            .rmb-title { font-size: 0.75rem; }
+            .rmb-desc { font-size: 0.6rem; }
+            .room-code-value { font-size: 1.8rem; letter-spacing: 5px; }
         }
 
         /* ============ SETUP ============ */
@@ -1223,6 +1504,43 @@
     .victory-points { font-size: 1.1rem; padding: 10px 20px; }
 }
     </style>
+    <!-- FIREBASE SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { 
+        getDatabase, ref, set, get, onValue, push, remove, 
+        onDisconnect, serverTimestamp, update, off 
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+    
+    const firebaseConfig = {
+        apiKey: "AIzaSyBSpXSiRpNn9vMInRAlK5F-NLuaW_MyS8Q",
+        authDomain: "math-magic-chess.firebaseapp.com",
+        databaseURL: "https://math-magic-chess-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "math-magic-chess",
+        storageBucket: "math-magic-chess.firebasestorage.app",
+        messagingSenderId: "252695726508",
+        appId: "1:252695726508:web:7fc8d7fd3baa5ff829d209"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    
+    // Expose ke window agar bisa diakses dari script biasa
+    window.firebaseDB = db;
+    window.firebaseRef = ref;
+    window.firebaseSet = set;
+    window.firebaseGet = get;
+    window.firebaseOnValue = onValue;
+    window.firebasePush = push;
+    window.firebaseRemove = remove;
+    window.firebaseOnDisconnect = onDisconnect;
+    window.firebaseServerTimestamp = serverTimestamp;
+    window.firebaseUpdate = update;
+    window.firebaseOff = off;
+    
+    console.log('🔥 Firebase connected!');
+    window.dispatchEvent(new Event('firebaseReady'));
+</script>
 </head>
 <body>
 
@@ -1243,6 +1561,45 @@
         </span>
         <span class="btn-arrow">→</span>
     </button>
+    
+    <button class="menu-btn btn-vs-player" onclick="startSetup('pvp')">
+        <span class="btn-icon">⚔️</span>
+        <span class="btn-text-wrap">
+            <span class="btn-title">1 VS 1 DUEL</span>
+            <span class="btn-subtitle">Tantang Temanmu (Lokal)</span>
+        </span>
+        <span class="btn-arrow">→</span>
+    </button>
+    
+    <!-- ⬇️ TOMBOL BARU: RANKED ⬇️ -->
+    <button class="menu-btn btn-ranked" onclick="openRankedMenu()">
+        <span class="btn-icon">🏆</span>
+        <span class="btn-text-wrap">
+            <span class="btn-title">RANKED ONLINE</span>
+            <span class="btn-subtitle">Duel Real-time Global</span>
+        </span>
+        <span class="btn-arrow">→</span>
+    </button>
+    <!-- ⬆️ AKHIR TOMBOL BARU ⬆️ -->
+    
+    <button class="menu-btn btn-history" onclick="showHistory()">
+        <span class="btn-icon">📜</span>
+        <span class="btn-text-wrap">
+            <span class="btn-title">RIWAYAT</span>
+            <span class="btn-subtitle">Statistik & Kemenangan</span>
+        </span>
+        <span class="btn-arrow">→</span>
+    </button>
+    
+    <button class="menu-btn btn-exit" onclick="exitGame()">
+        <span class="btn-icon">🚪</span>
+        <span class="btn-text-wrap">
+            <span class="btn-title">KELUAR</span>
+            <span class="btn-subtitle">Sampai jumpa!</span>
+        </span>
+        <span class="btn-arrow">→</span>
+    </button>
+</div>
     
     <button class="menu-btn btn-vs-player" onclick="startSetup('pvp')">
         <span class="btn-icon">⚔️</span>
@@ -1279,8 +1636,120 @@
 </div>
 
 <!-- SETUP -->
-<div id="setup-screen" class="screen">
+<!-- ========== RANKED SCREEN ========== -->
+<div id="ranked-screen" class="screen">
     <button class="back-btn" onclick="goHome()">Kembali</button>
+    
+    <div class="ranked-container">
+        <div class="ranked-header">
+            <div class="ranked-logo">🏆</div>
+            <div class="game-title" style="font-size:2rem; margin-bottom:5px;">RANKED ONLINE</div>
+            <div class="ranked-subtitle">Duel Real-time Global</div>
+        </div>
+        
+        <!-- Panel Login -->
+        <div id="ranked-login-panel" class="ranked-panel">
+            <h3 class="ranked-panel-title">🎮 MULAI BERTANDING</h3>
+            
+            <div class="input-group">
+                <label>Nama Pemain</label>
+                <input type="text" id="ranked-player-name" placeholder="Masukkan nama Anda..." maxlength="15">
+            </div>
+            
+            <div class="input-group">
+                <label>Pilih Commander</label>
+                <div class="commander-select" id="ranked-commanders" style="grid-template-columns: repeat(3, 1fr);"></div>
+            </div>
+            
+            <div class="ranked-info-cards">
+                <div class="ranked-info-card">
+                    <div class="ranked-info-icon">🎯</div>
+                    <div class="ranked-info-text">
+                        <div class="ranked-info-title">Sistem Rank</div>
+                        <div class="ranked-info-desc">Bronze → Master</div>
+                    </div>
+                </div>
+                <div class="ranked-info-card">
+                    <div class="ranked-info-icon">⚡</div>
+                    <div class="ranked-info-text">
+                        <div class="ranked-info-title">Real-time</div>
+                        <div class="ranked-info-desc">Rebutan soal langsung</div>
+                    </div>
+                </div>
+                <div class="ranked-info-card">
+                    <div class="ranked-info-icon">💎</div>
+                    <div class="ranked-info-text">
+                        <div class="ranked-info-title">Reward</div>
+                        <div class="ranked-info-desc">Menang: +200 poin</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="ranked-mode-select">
+                <button class="ranked-mode-btn" onclick="startMatchmaking()">
+                    <div class="rmb-icon">🎲</div>
+                    <div class="rmb-title">MATCH CEPAT</div>
+                    <div class="rmb-desc">Cari lawan otomatis</div>
+                </button>
+                <button class="ranked-mode-btn" onclick="showRoomMenu()">
+                    <div class="rmb-icon">🔑</div>
+                    <div class="rmb-title">ROOM PRIBADI</div>
+                    <div class="rmb-desc">Main dengan teman</div>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Panel Room -->
+        <div id="ranked-room-panel" class="ranked-panel" style="display:none;">
+            <h3 class="ranked-panel-title">🔑 ROOM PRIBADI</h3>
+            
+            <div style="display:flex; gap:15px; margin-bottom:20px;">
+                <button class="ranked-mode-btn" onclick="createRoom()" style="flex:1;">
+                    <div class="rmb-icon">🆕</div>
+                    <div class="rmb-title">BUAT ROOM</div>
+                    <div class="rmb-desc">Dapatkan kode</div>
+                </button>
+                <button class="ranked-mode-btn" onclick="showJoinRoom()" style="flex:1;">
+                    <div class="rmb-icon">🚪</div>
+                    <div class="rmb-title">JOIN ROOM</div>
+                    <div class="rmb-desc">Masukkan kode</div>
+                </button>
+            </div>
+            
+            <div id="join-room-form" style="display:none;">
+                <div class="input-group">
+                    <label>Kode Room (6 karakter)</label>
+                    <input type="text" id="room-code-input" placeholder="Contoh: MMC123" maxlength="6" style="text-transform:uppercase; letter-spacing:5px; font-size:1.3rem; text-align:center;">
+                </div>
+                <button class="start-btn" onclick="joinRoom()" style="width:100%; padding:15px;">
+                    <span>🚪 MASUK ROOM</span>
+                </button>
+            </div>
+            
+            <button class="back-btn" onclick="backToRankedLogin()" style="position:relative; top:auto; left:auto; margin-top:15px; width:100%;">Kembali</button>
+        </div>
+        
+        <!-- Panel Waiting (Mencari Lawan) -->
+        <div id="ranked-waiting-panel" class="ranked-panel" style="display:none;">
+            <div class="waiting-animation">
+                <div class="waiting-spinner"></div>
+                <div class="waiting-chess">♟️</div>
+            </div>
+            <h3 class="ranked-panel-title" id="waiting-title">🔍 MENCARI LAWAN...</h3>
+            <div class="waiting-info" id="waiting-info">Sedang mencari pemain lain di seluruh dunia</div>
+            <div class="waiting-timer">⏱️ <span id="waiting-time">0</span> detik</div>
+            
+            <div id="room-code-display" style="display:none;">
+                <div class="room-code-label">KODE ROOM ANDA:</div>
+                <div class="room-code-value" id="room-code-value">------</div>
+                <button class="copy-code-btn" onclick="copyRoomCode()">📋 COPY KODE</button>
+                <button class="copy-code-btn" onclick="shareRoomWA()" style="background:linear-gradient(135deg,#25d366,#128c7e);">📱 SHARE WA</button>
+            </div>
+            
+            <button class="back-btn" onclick="cancelMatchmaking()" style="position:relative; top:auto; left:auto; margin-top:20px;">Batalkan</button>
+        </div>
+    </div>
+</div>
     <div class="game-title" style="font-size:2rem; margin-bottom:30px;">Pilih Commander</div>
     <div class="setup-container">
         <div class="player-setup p1-setup">
@@ -2889,6 +3358,129 @@ function updateAbilityButtons(){
         panel.style.display = 'none';
         panel.classList.remove('active');
     }
+}
+// ============================================
+// RANKED MODE - TAHAP 1 (Buka Menu)
+// ============================================
+function openRankedMenu(){
+    // Cek Firebase sudah siap
+    if(!window.firebaseDB){
+        alert('⏳ Firebase belum siap. Coba refresh halaman.');
+        return;
+    }
+    
+    showScreen('ranked-screen');
+    
+    // Reset ke panel login
+    document.getElementById('ranked-login-panel').style.display = 'block';
+    document.getElementById('ranked-room-panel').style.display = 'none';
+    document.getElementById('ranked-waiting-panel').style.display = 'none';
+    
+    // Ambil nama tersimpan (kalau ada)
+    const savedName = localStorage.getItem('mc_ranked_name') || '';
+    document.getElementById('ranked-player-name').value = savedName;
+    
+    // Render commander selection
+    renderRankedCommanders();
+}
+
+let rankedSelCmd = 0;
+
+function renderRankedCommanders(){
+    const pts = getPoints();
+    const el = document.getElementById('ranked-commanders');
+    el.innerHTML = '';
+    COMMANDERS.forEach((cmd, i) => {
+        const d = document.createElement('div');
+        const isLocked = cmd.locked === true && pts < cmd.unlockCost;
+        d.className = 'commander-card' + (rankedSelCmd === i ? ' selected' : '') + (isLocked ? ' locked-card' : '');
+        
+        let visual = cmd.emoji || '❓';
+        if(cmd.image && !isLocked){
+            visual = `<img src="${cmd.image}" style="width:36px;height:36px;object-fit:contain;border-radius:50%;background:#fff;" />`;
+        } else if(isLocked){
+            visual = `<span style="font-size:2rem;">🔒</span>`;
+        }
+        
+        d.innerHTML = `
+            <div class="commander-avatar">${visual}</div>
+            <div class="commander-name">${cmd.name}</div>
+            <div class="commander-hp">❤️ ${cmd.hp} HP</div>
+            <div class="commander-power">${cmd.power}</div>
+            ${isLocked ? `<div class="commander-lock">🔒 ${cmd.unlockCost} POIN</div>` : ''}
+        `;
+        
+        d.onclick = () => {
+            if(isLocked){
+                alert('Commander terkunci! Butuh ' + cmd.unlockCost + ' poin.');
+            } else {
+                rankedSelCmd = i;
+                renderRankedCommanders();
+            }
+        };
+        el.appendChild(d);
+    });
+}
+
+function backToRankedLogin(){
+    document.getElementById('ranked-login-panel').style.display = 'block';
+    document.getElementById('ranked-room-panel').style.display = 'none';
+    document.getElementById('join-room-form').style.display = 'none';
+}
+
+function showRoomMenu(){
+    // Validasi nama dulu
+    const name = document.getElementById('ranked-player-name').value.trim();
+    if(!name){
+        alert('⚠️ Isi nama pemain dulu!');
+        document.getElementById('ranked-player-name').focus();
+        return;
+    }
+    localStorage.setItem('mc_ranked_name', name);
+    
+    document.getElementById('ranked-login-panel').style.display = 'none';
+    document.getElementById('ranked-room-panel').style.display = 'block';
+}
+
+function showJoinRoom(){
+    document.getElementById('join-room-form').style.display = 'block';
+    document.getElementById('room-code-input').focus();
+}
+
+// Placeholder functions (akan diisi di TAHAP 2)
+function startMatchmaking(){
+    const name = document.getElementById('ranked-player-name').value.trim();
+    if(!name){
+        alert('⚠️ Isi nama pemain dulu!');
+        return;
+    }
+    alert('🚧 Fitur Matchmaking akan diaktifkan di TAHAP 2!\nSekarang tes dulu tampilannya ya.');
+}
+
+function createRoom(){
+    alert('🚧 Fitur Create Room akan diaktifkan di TAHAP 2!');
+}
+
+function joinRoom(){
+    alert('🚧 Fitur Join Room akan diaktifkan di TAHAP 2!');
+}
+
+function cancelMatchmaking(){
+    document.getElementById('ranked-waiting-panel').style.display = 'none';
+    document.getElementById('ranked-login-panel').style.display = 'block';
+}
+
+function copyRoomCode(){
+    const code = document.getElementById('room-code-value').textContent;
+    navigator.clipboard.writeText(code);
+    alert('✅ Kode ' + code + ' berhasil disalin!');
+}
+
+function shareRoomWA(){
+    const code = document.getElementById('room-code-value').textContent;
+    const url = window.location.href;
+    const text = `🎮 Ayo main Math Magic Chess bareng aku!\n\n🔑 Kode Room: ${code}\n🔗 Link: ${url}\n\nBuka link, klik RANKED ONLINE → JOIN ROOM, masukkan kode di atas!`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
 // ========================================
