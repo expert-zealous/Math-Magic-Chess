@@ -1410,14 +1410,23 @@ function goHome(){
 let selCmd=[0,5];
 
 function startSetup(mode){
-    GS.mode=mode;
+    GS.mode = mode;
     showScreen('setup-screen');
-    document.getElementById('p2-setup-panel').style.display = mode==='ai' ? 'none' : 'block';
-    document.getElementById('p1-name').value='';
-    document.getElementById('p2-name').value='';
-    selCmd=[0,5];
-    renderCmd('p1-commanders',0);
-    renderCmd('p2-commanders',1);
+    
+    const p2Panel = document.getElementById('p2-setup-panel');
+    p2Panel.style.display = mode === 'ai' ? 'none' : 'block';
+    
+    document.getElementById('p1-name').value = '';
+    document.getElementById('p2-name').value = '';
+    
+    // Update placeholder sesuai mode
+    document.getElementById('p1-name').placeholder = 
+        mode === 'ai' ? 'Masukkan nama Anda...' : 'Nama Player 1...';
+    document.getElementById('p2-name').placeholder = 'Nama Player 2...';
+    
+    selCmd = [0, 5];
+    renderCmd('p1-commanders', 0);
+    renderCmd('p2-commanders', 1);
 }
 
 function renderCmd(cid, pi){
@@ -1473,8 +1482,33 @@ let animId;
 // ========================================
 function startGame(){
     PLAYER_POINTS = getPoints();
-    const n1 = document.getElementById('p1-name').value.trim() || 'Player 1';
-    const n2 = GS.mode === 'ai' ? 'Komputer AI' : (document.getElementById('p2-name').value.trim() || 'Player 2');
+    
+    const n1Raw = document.getElementById('p1-name').value.trim();
+    let n2Raw = '';
+    
+    // Validasi Player 1
+    if(!n1Raw){
+        alert('⚠️ Player 1: Silakan isi nama pemain terlebih dahulu!');
+        document.getElementById('p1-name').focus();
+        return;
+    }
+    
+    // Validasi Player 2 (khusus mode PVP)
+    if(GS.mode === 'pvp'){
+        n2Raw = document.getElementById('p2-name').value.trim();
+        if(!n2Raw){
+            alert('⚠️ Player 2: Silakan isi nama pemain terlebih dahulu!');
+            document.getElementById('p2-name').focus();
+            return;
+        }
+        if(n1Raw.toLowerCase() === n2Raw.toLowerCase()){
+            alert('⚠️ Nama Player 1 dan Player 2 tidak boleh sama!');
+            return;
+        }
+    }
+    
+    const n1 = n1Raw;
+    const n2 = GS.mode === 'ai' ? 'Komputer AI' : n2Raw;
     const c1 = COMMANDERS[selCmd[0]], c2 = COMMANDERS[selCmd[1]];
 
     GS.players = [
@@ -2233,8 +2267,17 @@ function generateQuestion(){
     // Tampilkan soal di UI
     document.getElementById('question-text').textContent = GS.currentQuestion.text;
     document.getElementById('answer-display').innerHTML = '<span class="answer-cursor">|</span>';
-    document.getElementById('race-text').textContent = GS.mode==='pvp' ? '⚡ SIAPA CEPAT DIA DAPAT!' : '⚡ JAWAB SEBELUM KOMPUTER!';
-    document.getElementById('turn-indicator').textContent = '⚡ Soal Muncul!';
+        if(GS.mode === 'pvp'){
+        const currentPlayer = GS.players[GS.currentTurn];
+        const nextPlayer = GS.players[1 - GS.currentTurn];
+        document.getElementById('race-text').textContent = 
+            `⚡ ${currentPlayer.name} mulai duluan!`;
+        document.getElementById('turn-indicator').textContent = 
+            `⚡ Giliran: ${currentPlayer.name}`;
+    } else {
+        document.getElementById('race-text').textContent = '⚡ JAWAB SEBELUM KOMPUTER!';
+        document.getElementById('turn-indicator').textContent = '⚡ Soal Muncul!';
+    }
     document.getElementById('question-overlay').classList.add('active');
 
     // Timer setup dengan bonus commander
@@ -2390,35 +2433,76 @@ function numpadOK(){
     hideQ();
 
     if(GS.mode === 'pvp'){
-        const resp = GS.currentTurn, opp = 1 - resp;
+        const resp = GS.currentTurn;
+        const opp = 1 - resp;
+        
         if(correct){
-            GS.answerer = resp; GS.players[resp].correct++;
-            applyCorrectBonus(resp); // Vampir bonus
+            // ✅ BENAR: Yang jawab dapat langkah, dan giliran soal berikutnya TETAP dia
+            GS.answerer = resp; 
+            GS.players[resp].correct++;
+            applyCorrectBonus(resp);
             updateUI();
             showResult('✅','#44ff44');
             document.getElementById('turn-indicator').textContent = `${GS.players[resp].name} benar! Silakan langkah.`;
-            setTimeout(() => { if(!GS.gameOver){ GS.phase='move'; showPSMsg(`${GS.players[resp].name}: Pilih bidak!`); } }, 1200);
+            
+            // Setelah langkah, GS.currentTurn akan tetap = resp
+            // Jadi soal berikutnya juga milik pemain yang sama untuk race
+            // TAPI di mode PVP idealnya kedua pemain sama-sama race
+            // Jadi kita reset agar bergantian yang mulai duluan
+            
+            setTimeout(() => { 
+                if(!GS.gameOver){ 
+                    GS.phase='move'; 
+                    showPSMsg(`${GS.players[resp].name}: Pilih bidak!`); 
+                } 
+            }, 1200);
+            
+            // JANGAN gilir turn di sini - pemain yang benar dapat langkah
+            // Turn akan diperbarui setelah langkah selesai
         } else {
+            // ❌ SALAH: Turn pindah ke lawan, damage sesuai
             GS.players[resp].wrong++;
             resetSoulStreak(resp);
             const dmg = calcDamage(resp, opp);
             GS.players[resp].hp -= dmg;
             updateUI();
             showResult('❌','#ff4444');
-            if(GS.players[resp].hp <= 0){ endGame(opp); return; }
+            
+            if(GS.players[resp].hp <= 0){ 
+                endGame(opp); 
+                return; 
+            }
+            
+            // Lawan dapat giliran langkah karena yang jawab salah
             GS.answerer = opp;
             document.getElementById('turn-indicator').textContent = `${GS.players[resp].name} salah -${dmg} HP! Giliran ${GS.players[opp].name}`;
-            setTimeout(() => { if(!GS.gameOver){ GS.phase='move'; showPSMsg(`${GS.players[opp].name}: Pilih bidak!`); } }, 1200);
+            
+            setTimeout(() => { 
+                if(!GS.gameOver){ 
+                    GS.phase='move'; 
+                    showPSMsg(`${GS.players[opp].name}: Pilih bidak!`); 
+                } 
+            }, 1200);
+            
+            // Untuk soal berikutnya, ganti pemain yang mulai jawab
+            GS.currentTurn = opp;
         }
-        GS.currentTurn = 1 - GS.currentTurn;
+        // ❌ HAPUS: GS.currentTurn = 1 - GS.currentTurn;  ← Baris ini yang bikin bug!
     } else {
+        // Mode AI (tidak berubah)
         if(correct){
-            GS.answerer = 0; GS.players[0].correct++;
+            GS.answerer = 0; 
+            GS.players[0].correct++;
             applyCorrectBonus(0);
             updateUI();
             showResult('✅','#44ff44');
             document.getElementById('turn-indicator').textContent = `${GS.players[0].name} benar! Silakan langkah.`;
-            setTimeout(() => { if(!GS.gameOver){ GS.phase='move'; showPSMsg('Pilih bidak Anda!'); } }, 1200);
+            setTimeout(() => { 
+                if(!GS.gameOver){ 
+                    GS.phase='move'; 
+                    showPSMsg('Pilih bidak Anda!'); 
+                } 
+            }, 1200);
         } else {
             GS.players[0].wrong++;
             resetSoulStreak(0);
@@ -2429,7 +2513,12 @@ function numpadOK(){
             if(GS.players[0].hp <= 0){ endGame(1); return; }
             GS.answerer = 1;
             document.getElementById('turn-indicator').textContent = `Salah -${dmg} HP! Giliran Komputer`;
-            setTimeout(() => { if(!GS.gameOver){ GS.phase='move'; aiMove(); } }, 1500);
+            setTimeout(() => { 
+                if(!GS.gameOver){ 
+                    GS.phase='move'; 
+                    aiMove(); 
+                } 
+            }, 1500);
         }
     }
 }
