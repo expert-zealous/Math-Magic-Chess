@@ -240,19 +240,20 @@
     position: relative;
 }
 .btn-ranked::after {
-    content: '🔴 LIVE';
+    content: 'LIVE';
     position: absolute;
-    top: -8px;
-    right: 12px;
+    top: 5px;
+    right: 15px;
     background: linear-gradient(135deg, #ff0044, #ff4488);
     color: white;
-    font-size: 0.55rem;
+    font-size: 0.6rem;
     font-weight: 900;
-    padding: 3px 8px;
+    padding: 3px 10px;
     border-radius: 10px;
-    letter-spacing: 1.5px;
-    box-shadow: 0 0 10px rgba(255,0,68,0.6);
+    letter-spacing: 2px;
+    box-shadow: 0 0 10px rgba(255,0,68,0.8);
     animation: livePulse 1.5s infinite;
+    z-index: 2;
 }
 @keyframes livePulse {
     0%,100% { transform: scale(1); box-shadow: 0 0 10px rgba(255,0,68,0.6); }
@@ -1715,10 +1716,14 @@
                 <button class="copy-code-btn" onclick="shareRoomWA()" style="background:linear-gradient(135deg,#25d366,#128c7e);">📱 SHARE WA</button>
             </div>
             
-            <button class="back-btn" onclick="cancelMatchmaking()" style="position:relative; top:auto; left:auto; margin-top:20px;">Batalkan</button>
+                        <button class="back-btn" onclick="cancelMatchmaking()" style="position:relative; top:auto; left:auto; margin-top:20px;">Batalkan</button>
         </div>
     </div>
 </div>
+
+<!-- ⬇️ TAMBAH INI: Pembuka Setup Screen ⬇️ -->
+<div id="setup-screen" class="screen">
+    <button class="back-btn" onclick="goHome()">Kembali</button>
     <div class="game-title" style="font-size:2rem; margin-bottom:30px;">Pilih Commander</div>
     <div class="setup-container">
         <div class="player-setup p1-setup">
