@@ -1096,6 +1096,132 @@
     margin-top: 3px;
     letter-spacing: 1px;
 }
+/* ============ VICTORY OVERLAY CINEMATIC ============ */
+#victory-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse at center, rgba(30,10,80,0.85), rgba(0,0,20,0.95));
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: victoryFadeIn 0.5s ease;
+    overflow: hidden;
+}
+
+#victory-overlay.fade-out {
+    animation: victoryFadeOut 0.8s ease forwards;
+}
+
+@keyframes victoryFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes victoryFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+#fireworks-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.victory-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    animation: victoryZoomIn 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+}
+
+@keyframes victoryZoomIn {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.victory-icon {
+    font-size: 8rem;
+    animation: victoryCrownBounce 1s ease infinite;
+    filter: drop-shadow(0 0 40px rgba(255,215,0,0.8));
+    margin-bottom: 10px;
+}
+
+@keyframes victoryCrownBounce {
+    0%,100% { transform: translateY(0) rotate(-5deg); }
+    50% { transform: translateY(-20px) rotate(5deg); }
+}
+
+.victory-main-text {
+    font-family: 'Cinzel', serif;
+    font-size: 5rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #ffd700, #ff8c00, #ff4444, #ffd700);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: goldShimmer 2s ease infinite;
+    text-shadow: 0 0 60px rgba(255,215,0,0.6);
+    letter-spacing: 8px;
+    margin-bottom: 10px;
+    line-height: 1;
+}
+
+.victory-winner-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #ffffff;
+    text-shadow: 0 0 30px rgba(255,255,255,0.5), 0 0 60px rgba(255,215,0,0.4);
+    letter-spacing: 4px;
+    margin-bottom: 5px;
+    animation: winnerNamePulse 2s infinite;
+}
+
+@keyframes winnerNamePulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.victory-subtitle {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.5rem;
+    color: #ffd700;
+    letter-spacing: 10px;
+    margin-bottom: 30px;
+    font-weight: 700;
+}
+
+.victory-points {
+    display: inline-block;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,140,0,0.25));
+    border: 3px solid #ffd700;
+    border-radius: 40px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #ffd700;
+    letter-spacing: 3px;
+    box-shadow: 0 0 40px rgba(255,215,0,0.5);
+    animation: pointsShine 1.5s ease infinite;
+}
+
+@keyframes pointsShine {
+    0%,100% { box-shadow: 0 0 40px rgba(255,215,0,0.5); transform: scale(1); }
+    50% { box-shadow: 0 0 70px rgba(255,215,0,0.9); transform: scale(1.05); }
+}
+
+@media (max-width: 768px) {
+    .victory-icon { font-size: 5rem; }
+    .victory-main-text { font-size: 3rem; letter-spacing: 4px; }
+    .victory-winner-name { font-size: 1.8rem; letter-spacing: 2px; }
+    .victory-subtitle { font-size: 1rem; letter-spacing: 5px; }
+    .victory-points { font-size: 1.1rem; padding: 10px 20px; }
+}
     </style>
 </head>
 <body>
@@ -2774,44 +2900,159 @@ function endGame(wi){
     hideQ(); hidePSMsg(); clearHL();
     const w = GS.players[wi], l = GS.players[1-wi];
     
-    // --- LOGIKA POIN YANG DITINGKATKAN ---
+    // === HITUNG POIN ===
     let ptsEarned = 0;
-    
-    // Cek mode: Player selalu Index 0
-    // Jika wi === 0 berarti Player menang
     if(wi === 0){
-        ptsEarned += 100; // Menang = 100 poin
-        console.log("Pemain menang! Poin dasar +100");
+        ptsEarned += 100;
     } else {
-        ptsEarned += 20; // Kalah dapat hiburan 20 poin
-        console.log("Pemain kalah. Poin dasar +20");
+        ptsEarned += 20;
     }
-    
     ptsEarned += (GS.moves * 2); 
     ptsEarned += (w.correct || 0) * 10;
-    
-    // Bonus commander premium
     if(COMMANDERS[selCmd[0]].locked === false && COMMANDERS[selCmd[0]].image) ptsEarned += 20;
     
     addPoints(ptsEarned);
     PLAYER_POINTS = getPoints(); 
     
-    // Tampilkan notifikasi poin
-    alert("Pertandingan Selesai!\n" + w.name + " Menang.\nAnda mendapatkan: " + ptsEarned + " Poin.");
-    // -------------------------------------
-
     saveHist(w.name, l.name, GS.mode, GS.moves, w.correct, w.wrong);
 
-    setTimeout(()=>{
-        showScreen('gameover-screen');
-        document.getElementById('winner-name').textContent = `🏆 ${w.name} Menang!`;
-        // ... (sisanya tetap sama) ...
-        document.getElementById('game-stats').innerHTML = `
-            <div class="stat-card"><div class="stat-value">${GS.moves}</div><div class="stat-label">Total Langkah</div></div>
-            <div class="stat-card"><div class="stat-value">${w.correct}</div><div class="stat-label">Benar</div></div>
-            <div class="stat-card"><div class="stat-value">${ptsEarned}</div><div class="stat-label">Poin Didapat</div></div>
-        `;
-    }, 1500);
+    // === EFEK CINEMATIC SEBELUM PINDAH KE GAMEOVER SCREEN ===
+    triggerVictoryEffect(wi, w.name, ptsEarned);
+}
+
+// Fungsi baru: Efek kemenangan cinematic
+function triggerVictoryEffect(winnerIdx, winnerName, points){
+    // Buat overlay kemenangan
+    const overlay = document.createElement('div');
+    overlay.id = 'victory-overlay';
+    overlay.innerHTML = `
+        <canvas id="fireworks-canvas"></canvas>
+        <div class="victory-content">
+            <div class="victory-icon">👑</div>
+            <div class="victory-main-text">CHECKMATE!</div>
+            <div class="victory-winner-name">${winnerName}</div>
+            <div class="victory-subtitle">MENANG!</div>
+            <div class="victory-points">+${points} POIN</div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    // Mulai animasi kembang api
+    launchFireworks();
+    
+    // Play sound (opsional)
+    playVictorySound();
+    
+    // Setelah 4 detik, pindah ke gameover screen
+    setTimeout(() => {
+        overlay.classList.add('fade-out');
+        setTimeout(() => {
+            overlay.remove();
+            showScreen('gameover-screen');
+            document.getElementById('winner-name').textContent = `🏆 ${winnerName} Menang!`;
+            document.getElementById('game-stats').innerHTML = `
+                <div class="stat-card"><div class="stat-value">${GS.moves}</div><div class="stat-label">Total Langkah</div></div>
+                <div class="stat-card"><div class="stat-value">${GS.players[winnerIdx].correct}</div><div class="stat-label">Benar</div></div>
+                <div class="stat-card"><div class="stat-value">${points}</div><div class="stat-label">Poin Didapat</div></div>
+                <div class="stat-card"><div class="stat-value">${Math.max(0, GS.players[winnerIdx].hp)}</div><div class="stat-label">HP Tersisa</div></div>
+                <div class="stat-card"><div class="stat-value">${GS.mode==='ai'?'🤖 VS AI':'👥 PVP'}</div><div class="stat-label">Mode</div></div>
+            `;
+        }, 800);
+    }, 4000);
+}
+
+// === KEMBANG API ===
+function launchFireworks(){
+    const canvas = document.getElementById('fireworks-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    const particles = [];
+    const colors = ['#ff0000', '#00ff00', '#0088ff', '#ffff00', '#ff00ff', '#00ffff', '#ffd700', '#ff8800'];
+    
+    function createFirework(x, y){
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const count = 80 + Math.floor(Math.random() * 40);
+        for(let i = 0; i < count; i++){
+            const angle = (Math.PI * 2 * i) / count;
+            const speed = 3 + Math.random() * 4;
+            particles.push({
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 1.0,
+                color,
+                size: 2 + Math.random() * 2
+            });
+        }
+    }
+    
+    // Peluncuran otomatis
+    let launchCount = 0;
+    const launcher = setInterval(() => {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height * 0.6;
+        createFirework(x, y);
+        launchCount++;
+        if(launchCount > 15) clearInterval(launcher);
+    }, 250);
+    
+    // Animasi partikel
+    function animate(){
+        if(!document.getElementById('fireworks-canvas')) return;
+        
+        ctx.fillStyle = 'rgba(0, 0, 30, 0.15)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        for(let i = particles.length - 1; i >= 0; i--){
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.08; // gravity
+            p.vx *= 0.98;
+            p.vy *= 0.98;
+            p.life -= 0.012;
+            
+            if(p.life <= 0){
+                particles.splice(i, 1);
+                continue;
+            }
+            
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        
+        requestAnimationFrame(animate);
+    }
+    animate();
+}
+
+// === SOUND KEMENANGAN ===
+function playVictorySound(){
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523, 659, 784, 1047]; // C, E, G, C (fanfare)
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = freq;
+            osc.type = 'triangle';
+            gain.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.4);
+            osc.start(ctx.currentTime + i * 0.15);
+            osc.stop(ctx.currentTime + i * 0.15 + 0.4);
+        });
+    } catch(e){}
 }
 
 function rematch(){ startGame(); }
