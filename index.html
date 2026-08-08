@@ -1553,7 +1553,13 @@ function initThreeJS(){
     scene.fog=new THREE.FogExp2(0x080818, 0.008);
 
     camera=new THREE.PerspectiveCamera(42, container.clientWidth/container.clientHeight, 0.1, 120);
-    camera.position.set(0, 22, 16);
+    // DETEKSI MOBILE: Jika lebar layar < 768px, kamera naik lebih tinggi dan mundur
+    const isMobile = window.innerWidth < 768;
+    const camY = isMobile ? 28 : 24; 
+    const camZ = isMobile ? 22 : 18;
+    
+    camera.position.set(0, camY, camZ); 
+    camera.lookAt(0, -0.5, 0);
     camera.lookAt(0, -0.5, 0);
 
     renderer=new THREE.WebGLRenderer({canvas, antialias:true});
@@ -2674,23 +2680,49 @@ function updateAbilityButtons(){
 // GAME OVER
 // ========================================
 function endGame(wi){
-    GS.gameOver=true;
+    GS.gameOver = true;
     if(GS.qTimer) clearInterval(GS.qTimer);
     hideQ(); hidePSMsg(); clearHL();
-    const w=GS.players[wi], l=GS.players[1-wi];
+    const w = GS.players[wi], l = GS.players[1-wi];
+    
+    // --- LOGIKA POIN YANG DITINGKATKAN ---
+    let ptsEarned = 0;
+    
+    // Cek mode: Player selalu Index 0
+    // Jika wi === 0 berarti Player menang
+    if(wi === 0){
+        ptsEarned += 100; // Menang = 100 poin
+        console.log("Pemain menang! Poin dasar +100");
+    } else {
+        ptsEarned += 20; // Kalah dapat hiburan 20 poin
+        console.log("Pemain kalah. Poin dasar +20");
+    }
+    
+    ptsEarned += (GS.moves * 2); 
+    ptsEarned += (w.correct || 0) * 10;
+    
+    // Bonus commander premium
+    if(COMMANDERS[selCmd[0]].locked === false && COMMANDERS[selCmd[0]].image) ptsEarned += 20;
+    
+    addPoints(ptsEarned);
+    PLAYER_POINTS = getPoints(); 
+    
+    // Tampilkan notifikasi poin
+    alert("Pertandingan Selesai!\n" + w.name + " Menang.\nAnda mendapatkan: " + ptsEarned + " Poin.");
+    // -------------------------------------
+
     saveHist(w.name, l.name, GS.mode, GS.moves, w.correct, w.wrong);
 
     setTimeout(()=>{
         showScreen('gameover-screen');
-        document.getElementById('winner-name').textContent=`🏆 ${w.name} Menang!`;
-        document.getElementById('game-stats').innerHTML=`
+        document.getElementById('winner-name').textContent = `🏆 ${w.name} Menang!`;
+        // ... (sisanya tetap sama) ...
+        document.getElementById('game-stats').innerHTML = `
             <div class="stat-card"><div class="stat-value">${GS.moves}</div><div class="stat-label">Total Langkah</div></div>
-            <div class="stat-card"><div class="stat-value">${w.correct}</div><div class="stat-label">Benar (${w.name})</div></div>
-            <div class="stat-card"><div class="stat-value">${l.correct}</div><div class="stat-label">Benar (${l.name})</div></div>
-            <div class="stat-card"><div class="stat-value">${Math.max(0,w.hp)}</div><div class="stat-label">HP Tersisa</div></div>
-            <div class="stat-card"><div class="stat-value">${GS.mode==='ai'?'🤖 VS AI':'👥 PVP'}</div><div class="stat-label">Mode</div></div>
+            <div class="stat-card"><div class="stat-value">${w.correct}</div><div class="stat-label">Benar</div></div>
+            <div class="stat-card"><div class="stat-value">${ptsEarned}</div><div class="stat-label">Poin Didapat</div></div>
         `;
-    },1500);
+    }, 1500);
 }
 
 function rematch(){ startGame(); }
