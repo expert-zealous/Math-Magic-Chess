@@ -1504,6 +1504,39 @@
     .victory-subtitle { font-size: 1rem; letter-spacing: 5px; }
     .victory-points { font-size: 1.1rem; padding: 10px 20px; }
 }
+/* EFEK BERNAFAS KARAKTER */
+@keyframes breathe {
+  0%, 100% { 
+    transform: scale(1); 
+    filter: brightness(1);
+  }
+  50% { 
+    transform: scale(1.08); 
+    filter: brightness(1.2);
+  }
+}
+
+.commander-img.breathing {
+  animation: breathe 3s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+/* Efek hover tambahan saat mouse di atas karakter */
+.commander-card:hover .commander-img.breathing {
+  animation-play-state: paused;
+  transform: scale(1.15);
+  filter: brightness(1.3) drop-shadow(0 0 10px rgba(255,215,0,0.6));
+}
+
+/* Style untuk karakter terkunci yang dihover */
+.commander-card.locked-card:hover .commander-img {
+  filter: grayscale(100%) brightness(0.6) !important;
+  transform: scale(1.05);
+}
+.commander-card.selected .commander-img {
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.4);
+  border: 2px solid #ffd700;
+}
     </style>
     <!-- FIREBASE SDK -->
 <script type="module">
@@ -2012,13 +2045,22 @@ function renderCmd(cid, pi){
         d.className = 'commander-card' + (selCmd[pi]===i ? ' selected' : '') + (isLocked ? ' locked-card' : '');
         
         // Gambar atau Emoji
-        let visual = cmd.emoji || '❓';
-        if(cmd.image && !isLocked){
-            // Jika sudah terbuka & punya file gambar, tampilkan gambar PNG
-            visual = `<img src="${cmd.image}" style="width:36px;height:36px;object-fit:contain;border-radius:50%;background:#fff;" alt="${cmd.name}" />`;
-        } else if(isLocked){
-            visual = `<span style="font-size:2rem;">🔒</span>`;
-        }
+let visual = cmd.emoji || '❓';
+if(cmd.image){
+  if(isLocked){
+    // Gambar karakter tetap tampil tapi redup + ada overlay gembok
+    visual = `
+      <div style="position:relative;display:inline-block;">
+        <img src="${cmd.image}" class="commander-img" style="width:36px;height:36px;object-fit:contain;border-radius:50%;background:#fff;filter:grayscale(100%) brightness(0.4);opacity:0.7;" />
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.2rem;filter:none;">🔒</div>
+      </div>`;
+  } else {
+    // Gambar normal dengan efek bernafas
+    visual = `<img src="${cmd.image}" class="commander-img breathing" style="width:36px;height:36px;object-fit:contain;border-radius:50%;background:#fff;" />`;
+  }
+} else if(isLocked){
+  visual = `<span style="font-size:2rem;">🔒</span>`;
+}
         
         d.innerHTML = `
             <div class="commander-avatar">${visual}</div>
@@ -3371,12 +3413,23 @@ function renderRankedCommanders(){
         const isLocked = cmd.locked === true && pts < cmd.unlockCost;
         d.className = 'commander-card' + (rankedSelCmd === i ? ' selected' : '') + (isLocked ? ' locked-card' : '');
         
-        let visual = cmd.emoji || '❓';
-        if(cmd.image && !isLocked){
-            visual = `<img src="${cmd.image}" style="width:36px;height:36px;object-fit:contain;border-radius:50%;background:#fff;" />`;
-        } else if(isLocked){
-            visual = `<span style="font-size:2rem;">🔒</span>`;
-        }
+        // Gambar atau Emoji
+let visual = cmd.emoji || '❓';
+if(cmd.image){
+  if(isLocked){
+    // Gambar karakter tetap tampil tapi redup + ada overlay gembok
+    visual = `
+      <div style="position:relative;display:inline-block;">
+        <img src="${cmd.image}" class="commander-img" style="width:36px;height:36px;object-fit:contain;border-radius:50%;background:#fff;filter:grayscale(100%) brightness(0.4);opacity:0.7;" />
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.2rem;filter:none;">🔒</div>
+      </div>`;
+  } else {
+    // Gambar normal dengan efek bernafas
+    visual = `<img src="${cmd.image}" class="commander-img breathing" style="width:36px;height:36px;object-fit:contain;border-radius:50%;background:#fff;" />`;
+  }
+} else if(isLocked){
+  visual = `<span style="font-size:2rem;">🔒</span>`;
+}
         
         d.innerHTML = `
             <div class="commander-avatar">${visual}</div>
