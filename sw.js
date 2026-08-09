@@ -1,17 +1,28 @@
-const CACHE_NAME = 'mathchess-v1';
-const urlsToCache = [
-  './',
-  './index.html'
-];
+// sw.js - Version 3 (Auto-update)
+const CACHE_NAME = 'math-magic-chess-v3';
 
 self.addEventListener('install', event => {
+  console.log('[SW] Install v3');
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  console.log('[SW] Activate v3');
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            console.log('[SW] Menghapus cache lama:', key);
+            return caches.delete(key);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
-  );
+  // Selalu ambil dari internet, jangan pakai cache
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
 });
