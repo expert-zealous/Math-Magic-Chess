@@ -1537,6 +1537,47 @@
   box-shadow: 0 0 15px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.4);
   border: 2px solid #ffd700;
 }
+
+/* =========================================
+   AVATAR COMMANDER DI HEADER SAAT GAME
+   ========================================= */
+
+.info-avatar {
+  overflow: hidden;
+  position: relative;
+}
+
+/* Gambar commander memenuhi avatar bulat */
+.game-avatar-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+  transform-origin: center;
+  animation: gameCommanderBreathe 2.8s ease-in-out infinite;
+}
+
+/* Efek bernafas: membesar, mengecil, sedikit bercahaya */
+@keyframes gameCommanderBreathe {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1) saturate(1);
+  }
+
+  50% {
+    transform: scale(1.13);
+    filter: brightness(1.2) saturate(1.18);
+  }
+}
+
+/* Glow emas ketika commander memakai gambar PNG */
+.info-avatar:has(.game-avatar-img) {
+  border-color: #ffd700;
+  box-shadow:
+    0 0 10px rgba(255, 215, 0, 0.65),
+    0 0 22px rgba(100, 80, 255, 0.30);
+}
     </style>
     <!-- FIREBASE SDK -->
 <script type="module">
@@ -3186,19 +3227,51 @@ function showPSMsg(msg){
 }
 function hidePSMsg(){ document.getElementById('piece-select-msg').classList.remove('active'); }
 
+function setGameAvatar(elementId, commander){
+ const avatarElement = document.getElementById(elementId);
+
+ // Jika commander mempunyai file PNG, tampilkan PNG.
+ if(commander && commander.image){
+   avatarElement.innerHTML = `
+     <img
+       src="${commander.image}"
+       alt="${commander.name}"
+       class="game-avatar-img"
+       onerror="this.style.display='none'; this.parentElement.textContent='⚔️';"
+     >
+   `;
+ } else {
+   // Commander gratis yang tidak memiliki PNG tetap tampil memakai emoji.
+   avatarElement.textContent = commander?.emoji || '♟️';
+ }
+}
 // ========================================
 // UI
 // ========================================
 function updateUI(){
-    const p1=GS.players[0], p2=GS.players[1];
-    document.getElementById('p1-display-name').textContent=p1.name;
-    document.getElementById('p2-display-name').textContent=p2.name;
-    document.getElementById('p1-avatar').textContent=p1.commander.emoji;
-    document.getElementById('p2-avatar').textContent=p2.commander.emoji;
-    document.getElementById('p1-hp-bar').style.width=Math.max(0,(p1.hp/p1.maxHp)*100)+'%';
-    document.getElementById('p2-hp-bar').style.width=Math.max(0,(p2.hp/p2.maxHp)*100)+'%';
-    document.getElementById('p1-hp-text').textContent=`HP: ${Math.max(0,p1.hp)}/${p1.maxHp}`;
-    document.getElementById('p2-hp-text').textContent=`HP: ${Math.max(0,p2.hp)}/${p2.maxHp}`;
+ const p1 = GS.players[0];
+ const p2 = GS.players[1];
+
+ document.getElementById('p1-display-name').textContent = p1.name;
+ document.getElementById('p2-display-name').textContent = p2.name;
+
+ // Avatar commander Player 1
+ setGameAvatar('p1-avatar', p1.commander);
+
+ // Avatar commander Player 2
+ setGameAvatar('p2-avatar', p2.commander);
+
+ document.getElementById('p1-hp-bar').style.width =
+   Math.max(0, (p1.hp / p1.maxHp) * 100) + '%';
+
+ document.getElementById('p2-hp-bar').style.width =
+   Math.max(0, (p2.hp / p2.maxHp) * 100) + '%';
+
+ document.getElementById('p1-hp-text').textContent =
+   `HP: ${Math.max(0, p1.hp)}/${p1.maxHp}`;
+
+ document.getElementById('p2-hp-text').textContent =
+   `HP: ${Math.max(0, p2.hp)}/${p2.maxHp}`;
 }
 // =========================================
 // CHRONOMANCER: TIME REWIND
