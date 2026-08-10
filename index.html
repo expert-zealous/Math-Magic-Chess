@@ -1147,7 +1147,7 @@
             white-space: nowrap;
         }
         .move-message { bottom: 100px; }
-        .piece-select-msg { top: 90px; }
+        .piece-select-msg { top: auto; bottom: 24px; }
         .move-message.active, .piece-select-msg.active {
             display: block;
             animation: slideUp 0.3s ease;
@@ -1610,13 +1610,43 @@
   drop-shadow(0 0 8px rgba(255,215,0,0.65)) !important;
  animation: breathe 3s ease-in-out infinite;
 }
-    </style>
+    
+/* ===== EXPERT ZEALOUS FINAL UI PATCH ===== */
+#game-screen{position:relative;overflow:hidden;}
+#game-screen .game-area{position:absolute;inset:0;width:100%;height:100%;z-index:1;}
+#game-screen .game-header{position:absolute;top:8px;left:0;right:0;width:100%;height:auto;min-height:64px;padding:6px 14px;background:linear-gradient(180deg,rgba(5,8,25,.88),rgba(5,8,25,.18));border:0;box-sizing:border-box;z-index:20;pointer-events:none;}
+#game-screen .game-header .player-info,#game-screen .game-header .turn-indicator{pointer-events:none;}
+#game-screen .game-header .turn-indicator{opacity:.0;width:1px;overflow:hidden;}
+#game-screen .hp-bar-container{width:150px;height:13px;}
+#game-screen .info-avatar{width:44px;height:44px;font-size:1.7rem;}
+#game-screen .info-details{gap:2px;}
+#game-screen .info-name{font-size:.72rem;}
+#game-screen .hp-text{font-size:.68rem;}
+#piece-select-msg{z-index:45;top:auto!important;bottom:24px!important;padding:7px 14px;border:1px solid rgba(255,215,0,.55);border-radius:999px;background:rgba(8,10,28,.88);color:#ffd700;font-family:Orbitron,sans-serif;font-size:.72rem;letter-spacing:1px;box-shadow:0 0 18px rgba(255,215,0,.18);pointer-events:none;}
+#result-feedback,#move-message{pointer-events:none;}
+@media (max-width:768px){
+  #game-screen .game-header{top:4px;padding:4px 7px;min-height:52px;}
+  #game-screen .hp-bar-container{width:105px;height:10px;}
+  #game-screen .info-avatar{width:34px;height:34px;font-size:1.35rem;border-width:1px;}
+  #game-screen .player-info{gap:6px;}
+  #game-screen .info-name{font-size:.58rem;}
+  #game-screen .hp-text{font-size:.55rem;}
+  #piece-select-msg{top:auto!important;bottom:18px!important;font-size:.58rem;padding:5px 10px;letter-spacing:.6px;}
+}
+@media (max-width:430px){
+  #game-screen .hp-bar-container{width:82px;}
+  #game-screen .info-avatar{width:30px;height:30px;font-size:1.1rem;}
+  #game-screen .info-name{font-size:.52rem;}
+  #game-screen .hp-text{font-size:.5rem;}
+}
+
+</style>
     <!-- FIREBASE SDK -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { 
         getDatabase, ref, set, get, onValue, push, remove, 
-        onDisconnect, serverTimestamp, update, off 
+        onDisconnect, serverTimestamp, update, off, runTransaction 
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
     
     const firebaseConfig = {
@@ -1644,6 +1674,7 @@
     window.firebaseServerTimestamp = serverTimestamp;
     window.firebaseUpdate = update;
     window.firebaseOff = off;
+    window.firebaseRunTransaction = runTransaction;
     
     console.log('🔥 Firebase connected!');
     window.dispatchEvent(new Event('firebaseReady'));
@@ -1822,6 +1853,7 @@
                 <div class="room-code-value" id="room-code-value">------</div>
                 <button class="copy-code-btn" onclick="copyRoomCode()">📋 COPY KODE</button>
                 <button class="copy-code-btn" onclick="shareRoomWA()" style="background:linear-gradient(135deg,#25d366,#128c7e);">📱 SHARE WA</button>
+                <button id="ranked-ready-btn" class="copy-code-btn" onclick="rankedReady()" style="display:none;background:linear-gradient(135deg,#d6b15b,#8f6a1f);">⚔️ MULAI PERTANDINGAN</button>
             </div>
             
                         <button class="back-btn" onclick="cancelMatchmaking()" style="position:relative; top:auto; left:auto; margin-top:20px;">Batalkan</button>
@@ -2345,6 +2377,12 @@ function initThreeJS(){
     raycaster=new THREE.Raycaster();
     mouse=new THREE.Vector2();
     canvas.addEventListener('click', onBoardClick);
+    canvas.addEventListener('pointerdown', (event)=>{
+        if(event.pointerType === 'touch'){
+            event.preventDefault();
+            onBoardClick(event);
+        }
+    }, {passive:false});
 
     (function animate(){
         animId=requestAnimationFrame(animate);
@@ -3129,7 +3167,7 @@ function numpadOK(){
             applyCorrectBonus(resp);
             updateUI();
             showResult('✅','#44ff44');
-            document.getElementById('turn-indicator').textContent = `${GS.players[resp].name} benar! Silakan langkah.`;
+            const turnEl = document.getElementById('turn-indicator'); if(turnEl) turnEl.textContent = `${GS.players[resp].name} benar! Silakan langkah.`;
             
             // Setelah langkah, GS.currentTurn akan tetap = resp
             // Jadi soal berikutnya juga milik pemain yang sama untuk race
@@ -3161,7 +3199,7 @@ function numpadOK(){
             
             // Lawan dapat giliran langkah karena yang jawab salah
             GS.answerer = opp;
-            document.getElementById('turn-indicator').textContent = `${GS.players[resp].name} salah -${dmg} HP! Giliran ${GS.players[opp].name}`;
+            const turnEl2 = document.getElementById('turn-indicator'); if(turnEl2) turnEl2.textContent = `${GS.players[resp].name} salah -${dmg} HP! Giliran ${GS.players[opp].name}`;
             
             setTimeout(() => { 
                 if(!GS.gameOver){ 
@@ -3248,6 +3286,7 @@ function updateAD(){
 function hideQ(){ document.getElementById('question-overlay').classList.remove('active'); }
 function showResult(s,c){
     const el=document.getElementById('result-feedback');
+    if(!el) return;
     el.textContent=s; el.style.color=c;
     el.classList.remove('active'); void el.offsetWidth;
     el.classList.add('active');
@@ -3255,9 +3294,10 @@ function showResult(s,c){
 }
 function showPSMsg(msg){
     const el=document.getElementById('piece-select-msg');
+    if(!el) return;
     el.textContent=msg; el.classList.add('active');
 }
-function hidePSMsg(){ document.getElementById('piece-select-msg').classList.remove('active'); }
+function hidePSMsg(){ const el=document.getElementById('piece-select-msg'); if(el) el.classList.remove('active'); }
 
 function setGameAvatar(elementId, commander){
  const avatarElement = document.getElementById(elementId);
@@ -3283,27 +3323,16 @@ function setGameAvatar(elementId, commander){
 function updateUI(){
  const p1 = GS.players[0];
  const p2 = GS.players[1];
-
- document.getElementById('p1-display-name').textContent = p1.name;
- document.getElementById('p2-display-name').textContent = p2.name;
-
- // Avatar commander Player 1
- setGameAvatar('p1-avatar', p1.commander);
-
- // Avatar commander Player 2
- setGameAvatar('p2-avatar', p2.commander);
-
- document.getElementById('p1-hp-bar').style.width =
-   Math.max(0, (p1.hp / p1.maxHp) * 100) + '%';
-
- document.getElementById('p2-hp-bar').style.width =
-   Math.max(0, (p2.hp / p2.maxHp) * 100) + '%';
-
- document.getElementById('p1-hp-text').textContent =
-   `HP: ${Math.max(0, p1.hp)}/${p1.maxHp}`;
-
- document.getElementById('p2-hp-text').textContent =
-   `HP: ${Math.max(0, p2.hp)}/${p2.maxHp}`;
+ const setText=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=v;};
+ const setWidth=(id,v)=>{const e=document.getElementById(id); if(e)e.style.width=v;};
+ setText('p1-display-name', p1.name);
+ setText('p2-display-name', p2.name);
+ if(document.getElementById('p1-avatar')) setGameAvatar('p1-avatar', p1.commander);
+ if(document.getElementById('p2-avatar')) setGameAvatar('p2-avatar', p2.commander);
+ setWidth('p1-hp-bar', Math.max(0,(p1.hp/p1.maxHp)*100)+'%');
+ setWidth('p2-hp-bar', Math.max(0,(p2.hp/p2.maxHp)*100)+'%');
+ setText('p1-hp-text', `HP: ${Math.max(0,p1.hp)}/${p1.maxHp}`);
+ setText('p2-hp-text', `HP: ${Math.max(0,p2.hp)}/${p2.maxHp}`);
 }
 // =========================================
 // CHRONOMANCER: TIME REWIND
@@ -3483,6 +3512,183 @@ function updateAbilityButtons(){
     }
 }
 // ============================================
+// RANKED MODE - TAHAP 2 (FIREBASE ROOM / MATCHMAKING)
+// ============================================
+let rankedRoomCode = null;
+let rankedRoomRef = null;
+let rankedRoomUnsub = null;
+let rankedQueueRef = null;
+let rankedQueueUnsub = null;
+let rankedClientId = localStorage.getItem('mmc_client_id');
+if(!rankedClientId){
+    rankedClientId = 'p_' + Math.random().toString(36).slice(2,10) + '_' + Date.now().toString(36);
+    localStorage.setItem('mmc_client_id', rankedClientId);
+}
+
+function rankedPlayerData(){
+    const name = document.getElementById('ranked-player-name').value.trim();
+    return {
+        id: rankedClientId,
+        name,
+        commanderIndex: rankedSelCmd,
+        commanderId: COMMANDERS[rankedSelCmd]?.id || null,
+        online: true,
+        joinedAt: Date.now()
+    };
+}
+
+function rankedSetWaiting(title, info, showCode=false){
+    document.getElementById('ranked-login-panel').style.display='none';
+    document.getElementById('ranked-room-panel').style.display='none';
+    document.getElementById('ranked-waiting-panel').style.display='block';
+    document.getElementById('waiting-title').textContent=title;
+    document.getElementById('waiting-info').textContent=info;
+    document.getElementById('room-code-display').style.display=showCode?'block':'none';
+}
+
+function stopRankedListeners(){
+    if(rankedRoomUnsub){ rankedRoomUnsub(); rankedRoomUnsub=null; }
+    if(rankedQueueUnsub){ rankedQueueUnsub(); rankedQueueUnsub=null; }
+    rankedRoomRef=null; rankedQueueRef=null;
+    rankedRoomCode=null;
+}
+
+function generateRoomCode(){
+    const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code='';
+    for(let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
+    return code;
+}
+
+async function createRoom(){
+    if(!window.firebaseDB){ alert('⏳ Firebase belum siap.'); return; }
+    const player=rankedPlayerData();
+    if(!player.name){ alert('⚠️ Isi nama pemain dulu!'); return; }
+    stopRankedListeners();
+    let code=generateRoomCode();
+    for(let i=0;i<5;i++){
+        const snap=await get(ref(window.firebaseDB,'rankedRooms/'+code));
+        if(!snap.exists()) break;
+        code=generateRoomCode();
+    }
+    rankedRoomCode=code;
+    rankedRoomRef=ref(window.firebaseDB,'rankedRooms/'+code);
+    await set(rankedRoomRef,{
+        status:'waiting',
+        host:player,
+        guest:null,
+        createdAt:serverTimestamp(),
+        lastUpdate:serverTimestamp()
+    });
+    await onDisconnect(rankedRoomRef).update({lastHostDisconnect:serverTimestamp()});
+    document.getElementById('room-code-value').textContent=code;
+    document.getElementById('ranked-ready-btn').style.display='none';
+    rankedSetWaiting('🔑 MENUNGGU LAWAN...', 'Bagikan kode room kepada teman Anda.', true);
+    startRankedTimer();
+    rankedRoomUnsub=onValue(rankedRoomRef, snap=>{
+        const room=snap.val();
+        if(!room) return;
+        if(room.guest){
+            document.getElementById('waiting-title').textContent='⚔️ LAWAN DITEMUKAN!';
+            document.getElementById('waiting-info').textContent=room.guest.name+' sudah masuk room.';
+            document.getElementById('ranked-ready-btn').style.display='inline-block';
+        }
+        if(room.status==='starting' || room.status==='playing'){
+            document.getElementById('waiting-title').textContent='🎮 PERTANDINGAN DIMULAI';
+            document.getElementById('waiting-info').textContent='Room siap. Sinkronisasi permainan akan digunakan pada tahap berikutnya.';
+        }
+    });
+}
+
+async function joinRoom(){
+    if(!window.firebaseDB){ alert('⏳ Firebase belum siap.'); return; }
+    const name=document.getElementById('ranked-player-name').value.trim();
+    const code=document.getElementById('room-code-input').value.trim().toUpperCase();
+    if(!name){ alert('⚠️ Isi nama pemain dulu!'); return; }
+    if(!/^[A-Z0-9]{6}$/.test(code)){ alert('⚠️ Kode room harus 6 karakter.'); return; }
+    stopRankedListeners();
+    const rr=ref(window.firebaseDB,'rankedRooms/'+code);
+    const snap=await get(rr);
+    if(!snap.exists()){ alert('❌ Room tidak ditemukan.'); return; }
+    const room=snap.val();
+    if(room.guest){ alert('❌ Room sudah penuh.'); return; }
+    const guest=rankedPlayerData();
+    await update(rr,{guest,status:'ready',lastUpdate:serverTimestamp()});
+    rankedRoomCode=code; rankedRoomRef=rr;
+    document.getElementById('room-code-value').textContent=code;
+    document.getElementById('ranked-ready-btn').style.display='inline-block';
+    rankedSetWaiting('⚔️ BERHASIL MASUK ROOM','Anda terhubung dengan '+(room.host?.name||'Host')+'.',true);
+    startRankedTimer();
+    rankedRoomUnsub=onValue(rr,s=>{
+        const r=s.val();
+        if(r?.status==='starting' || r?.status==='playing'){
+            document.getElementById('waiting-title').textContent='🎮 PERTANDINGAN DIMULAI';
+            document.getElementById('waiting-info').textContent='Room siap. Sinkronisasi permainan akan digunakan pada tahap berikutnya.';
+        }
+    });
+}
+
+async function rankedReady(){
+    if(!rankedRoomRef) return;
+    try{
+        const snap=await get(rankedRoomRef);
+        const room=snap.val();
+        if(!room?.host || !room?.guest){ alert('⏳ Masih menunggu kedua pemain.'); return; }
+        await update(rankedRoomRef,{status:'starting',lastUpdate:serverTimestamp()});
+        document.getElementById('ranked-ready-btn').style.display='none';
+        document.getElementById('waiting-title').textContent='🚀 ROOM SIAP';
+        document.getElementById('waiting-info').textContent='Kedua pemain terhubung. Tahap berikutnya akan menghubungkan state permainan real-time.';
+    }catch(e){ console.error(e); alert('❌ Gagal memulai room: '+e.message); }
+}
+
+async function startMatchmaking(){
+    if(!window.firebaseDB){ alert('⏳ Firebase belum siap.'); return; }
+    const player=rankedPlayerData();
+    if(!player.name){ alert('⚠️ Isi nama pemain dulu!'); return; }
+    stopRankedListeners();
+    rankedSetWaiting('🔍 MENCARI LAWAN...','Sedang mencari pemain lain di seluruh dunia');
+    startRankedTimer();
+    const queue=ref(window.firebaseDB,'rankedQueue');
+    rankedQueueRef=queue;
+    const myRef=push(queue);
+    await set(myRef,{...player,status:'waiting',createdAt:serverTimestamp()});
+    rankedQueueUnsub=onValue(queue, snap=>{
+        const items=snap.val()||{};
+        const candidates=Object.entries(items)
+          .filter(([k,v])=>k!==myRef.key && v && v.status==='waiting' && v.id!==rankedClientId)
+          .sort((a,b)=>(a[1].joinedAt||0)-(b[1].joinedAt||0));
+        if(!candidates.length) return;
+        const [key,opponent]=candidates[0];
+        const roomCode=generateRoomCode();
+        const roomRef=ref(window.firebaseDB,'rankedRooms/'+roomCode);
+        const hostIsMe=(player.joinedAt||0) <= (opponent.joinedAt||0);
+        const host=hostIsMe?player:opponent;
+        const guest=hostIsMe?opponent:player;
+        set(roomRef,{status:'ready',host,guest,createdAt:serverTimestamp(),matchmaking:true})
+          .then(()=>{
+              set(myRef,{...player,status:'matched',roomCode});
+              set(ref(window.firebaseDB,'rankedQueue/'+key),{...opponent,status:'matched',roomCode});
+              rankedRoomCode=roomCode; rankedRoomRef=roomRef;
+              rankedSetWaiting('⚔️ LAWAN DITEMUKAN!',opponent.name+' siap bertanding.');
+              document.getElementById('room-code-display').style.display='block';
+              document.getElementById('room-code-value').textContent=roomCode;
+              document.getElementById('ranked-ready-btn').style.display='inline-block';
+              if(rankedQueueUnsub){rankedQueueUnsub(); rankedQueueUnsub=null;}
+          });
+    });
+}
+
+let rankedTimerInterval=null, rankedTimerStart=0;
+function startRankedTimer(){
+    if(rankedTimerInterval) clearInterval(rankedTimerInterval);
+    rankedTimerStart=Date.now();
+    document.getElementById('waiting-time').textContent='0';
+    rankedTimerInterval=setInterval(()=>{
+        document.getElementById('waiting-time').textContent=Math.floor((Date.now()-rankedTimerStart)/1000);
+    },1000);
+}
+
+// ============================================
 // RANKED MODE - TAHAP 1 (Buka Menu)
 // ============================================
 function openRankedMenu(){
@@ -3581,27 +3787,22 @@ function showJoinRoom(){
     document.getElementById('room-code-input').focus();
 }
 
-// Placeholder functions (akan diisi di TAHAP 2)
-function startMatchmaking(){
-    const name = document.getElementById('ranked-player-name').value.trim();
-    if(!name){
-        alert('⚠️ Isi nama pemain dulu!');
-        return;
+
+async function cancelMatchmaking(){
+    if(rankedQueueRef && rankedClientId){
+        try{
+            const snap=await get(rankedQueueRef);
+            const items=snap.val()||{};
+            for(const [k,v] of Object.entries(items)){
+                if(v?.id===rankedClientId) await remove(ref(window.firebaseDB,'rankedQueue/'+k));
+            }
+        }catch(e){ console.warn('Queue cleanup:',e); }
     }
-    alert('🚧 Fitur Matchmaking akan diaktifkan di TAHAP 2!\nSekarang tes dulu tampilannya ya.');
-}
-
-function createRoom(){
-    alert('🚧 Fitur Create Room akan diaktifkan di TAHAP 2!');
-}
-
-function joinRoom(){
-    alert('🚧 Fitur Join Room akan diaktifkan di TAHAP 2!');
-}
-
-function cancelMatchmaking(){
-    document.getElementById('ranked-waiting-panel').style.display = 'none';
-    document.getElementById('ranked-login-panel').style.display = 'block';
+    if(rankedTimerInterval) clearInterval(rankedTimerInterval);
+    rankedTimerInterval=null;
+    stopRankedListeners();
+    document.getElementById('ranked-waiting-panel').style.display='none';
+    document.getElementById('ranked-login-panel').style.display='block';
 }
 
 function copyRoomCode(){
