@@ -1640,6 +1640,57 @@
   #game-screen .hp-text{font-size:.5rem;}
 }
 
+
+/* ===== MOBILE / SHORT SCREEN FINAL UI POLISH ===== */
+@media (max-width: 768px), (pointer: coarse) {
+  #gameover-screen {
+    padding: 6px 8px !important;
+    box-sizing: border-box;
+    overflow: hidden !important;
+    justify-content: center !important;
+    gap: 2px;
+  }
+  #gameover-screen .victory-crown { font-size: 2.8rem !important; line-height: .9 !important; margin: 0 0 2px !important; }
+  #gameover-screen .victory-text { font-size: 2rem !important; line-height: 1 !important; margin: 0 0 3px !important; }
+  #gameover-screen .winner-name { font-size: .9rem !important; margin: 0 0 7px !important; line-height: 1.1 !important; }
+  #gameover-screen .stats-container { gap: 5px !important; margin: 0 0 8px !important; max-width: 96vw; }
+  #gameover-screen .stat-card { min-width: 70px !important; padding: 6px 8px !important; border-radius: 9px !important; border-width: 1px !important; }
+  #gameover-screen .stat-value { font-size: .95rem !important; line-height: 1 !important; }
+  #gameover-screen .stat-label { font-size: .45rem !important; letter-spacing: .7px !important; margin-top: 3px !important; }
+  #gameover-screen > div:last-child { gap: 6px !important; }
+  #gameover-screen > div:last-child .menu-btn { padding: 7px 12px !important; min-height: 42px !important; width: auto !important; border-radius: 10px !important; }
+  #gameover-screen > div:last-child .btn-icon { width: 25px !important; height: 25px !important; font-size: .9rem !important; }
+  #gameover-screen > div:last-child .btn-title { font-size: .58rem !important; letter-spacing: .8px !important; }
+  #piece-select-msg, #move-message { bottom: 8px !important; max-width: 82vw !important; padding: 5px 9px !important; font-size: .54rem !important; letter-spacing: .45px !important; }
+}
+
+@media (max-height: 500px) and (pointer: coarse) {
+  #gameover-screen { padding: 3px 6px !important; }
+  #gameover-screen .victory-crown { font-size: 2.1rem !important; }
+  #gameover-screen .victory-text { font-size: 1.55rem !important; }
+  #gameover-screen .winner-name { font-size: .72rem !important; margin-bottom: 4px !important; }
+  #gameover-screen .stats-container { margin-bottom: 4px !important; gap: 3px !important; }
+  #gameover-screen .stat-card { min-width: 58px !important; padding: 4px 5px !important; }
+  #gameover-screen .stat-value { font-size: .75rem !important; }
+  #gameover-screen .stat-label { font-size: .38rem !important; }
+  #gameover-screen > div:last-child .menu-btn { min-height: 34px !important; padding: 4px 8px !important; }
+  #gameover-screen > div:last-child .btn-icon { width: 20px !important; height: 20px !important; font-size: .72rem !important; }
+  #gameover-screen > div:last-child .btn-title { font-size: .46rem !important; }
+  #victory-overlay .victory-content { max-width: 94vw; }
+  #victory-overlay .victory-icon { font-size: 3rem !important; margin-bottom: 2px !important; }
+  #victory-overlay .victory-main-text { font-size: 2rem !important; letter-spacing: 2px !important; margin-bottom: 4px !important; }
+  #victory-overlay .victory-winner-name { font-size: 1rem !important; letter-spacing: 1px !important; }
+  #victory-overlay .victory-subtitle { font-size: .65rem !important; letter-spacing: 3px !important; margin-bottom: 8px !important; }
+  #victory-overlay .victory-points { font-size: .78rem !important; padding: 6px 13px !important; border-width: 2px !important; }
+}
+
+@media (max-width: 430px) and (pointer: coarse) {
+  #gameover-screen .victory-crown { font-size: 2.4rem !important; }
+  #gameover-screen .victory-text { font-size: 1.7rem !important; }
+  #gameover-screen .stats-container { max-width: 92vw; }
+  #gameover-screen .stat-card { min-width: 64px !important; }
+}
+
 </style>
     <!-- FIREBASE SDK -->
 <script type="module">
@@ -1679,6 +1730,135 @@
     console.log('🔥 Firebase connected!');
     window.dispatchEvent(new Event('firebaseReady'));
 </script>
+
+<style id="mobile-keypad-fix">
+/* MOBILE KEYPAD FIX: lebih kecil dan seluruh tombol tetap terlihat */
+@media (max-width: 768px) {
+    .question-overlay {
+        padding: 6px;
+        overflow: hidden;
+    }
+
+    .question-box {
+        width: min(92vw, 330px);
+        min-width: 0;
+        max-width: 330px;
+        padding: 12px 14px 14px;
+        border-radius: 18px;
+    }
+
+    .race-text {
+        font-size: 0.62rem !important;
+        margin-bottom: 5px !important;
+    }
+
+    .timer-bar {
+        height: 4px;
+        margin-bottom: 7px;
+    }
+
+    .question-label {
+        font-size: 0.58rem;
+        letter-spacing: 2px;
+        margin-bottom: 4px;
+    }
+
+    .question-text {
+        font-size: 1.55rem;
+        margin-bottom: 7px;
+    }
+
+    .answer-display {
+        min-width: 0;
+        width: 100%;
+        min-height: 36px;
+        padding: 6px 12px;
+        margin-bottom: 9px;
+        border-radius: 10px;
+        font-size: 1.35rem;
+    }
+
+    .numpad {
+        width: 100%;
+        max-width: 286px;
+        gap: 5px;
+    }
+
+    .numpad-btn {
+        min-width: 0;
+        height: 38px;
+        padding: 5px 3px;
+        border-width: 1px;
+        border-radius: 8px;
+        font-size: 0.98rem;
+        line-height: 1;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .numpad-btn:hover {
+        transform: none;
+    }
+
+    .numpad-btn.btn-ok {
+        font-size: 0.82rem;
+        letter-spacing: 0.5px;
+    }
+}
+
+/* HP landscape: prioritaskan agar seluruh keypad masuk tinggi layar */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
+    .question-box {
+        width: 300px;
+        max-width: 300px;
+        padding: 8px 10px 10px;
+        border-radius: 15px;
+    }
+
+    .race-text {
+        font-size: 0.54rem !important;
+        margin-bottom: 3px !important;
+    }
+
+    .timer-bar {
+        height: 3px;
+        margin-bottom: 4px;
+    }
+
+    .question-label {
+        font-size: 0.5rem;
+        margin-bottom: 2px;
+    }
+
+    .question-text {
+        font-size: 1.25rem;
+        margin-bottom: 4px;
+    }
+
+    .answer-display {
+        min-height: 30px;
+        padding: 4px 8px;
+        margin-bottom: 5px;
+        font-size: 1.05rem;
+    }
+
+    .numpad {
+        max-width: 260px;
+        gap: 3px;
+    }
+
+    .numpad-btn {
+        height: 32px;
+        padding: 3px 2px;
+        font-size: 0.86rem;
+        border-radius: 6px;
+    }
+
+    .numpad-btn.btn-ok {
+        font-size: 0.72rem;
+    }
+}
+</style>
+
 </head>
 <body>
 
@@ -1946,7 +2126,7 @@
             <button class="numpad-btn" onclick="numpadInput('7')">7</button>
             <button class="numpad-btn" onclick="numpadInput('8')">8</button>
             <button class="numpad-btn" onclick="numpadInput('9')">9</button>
-            <button class="numpad-btn btn-ok" onclick="numpadOK()">✓</button>
+            <button class="numpad-btn btn-ok" onclick="numpadOK()">OK</button>
             <button class="numpad-btn" onclick="numpadInput('0')" style="grid-column:span 3">0</button>
         </div>
     </div>
@@ -2305,14 +2485,18 @@ function initThreeJS(){
     scene.fog=new THREE.FogExp2(0x080818, 0.008);
 
     camera=new THREE.PerspectiveCamera(42, container.clientWidth/container.clientHeight, 0.1, 120);
-    // DETEKSI MOBILE: Jika lebar layar < 768px, kamera naik lebih tinggi dan mundur
-    const isMobile = window.innerWidth < 768;
-    const camY = isMobile ? 28 : 24; 
-    const camZ = isMobile ? 22 : 18;
-    
-    camera.position.set(0, camY, camZ); 
-    camera.lookAt(0, -0.5, 0);
-    camera.lookAt(0, -0.5, 0);
+    // MOBILE: deteksi layar sentuh agar HP landscape juga memakai framing khusus.
+    const isMobile = window.matchMedia('(pointer: coarse)').matches ||
+                     navigator.maxTouchPoints > 0 ||
+                     Math.min(window.innerWidth, window.innerHeight) < 700;
+    const camY = isMobile ? 24 : 24;
+    const camZ = isMobile ? 16 : 18;
+    const camFov = isMobile ? 40 : 42;
+    camera.fov = camFov;
+    camera.updateProjectionMatrix();
+
+    camera.position.set(0, camY, camZ);
+    camera.lookAt(0, isMobile ? -1.15 : -0.5, 0);
 
     renderer=new THREE.WebGLRenderer({canvas, antialias:true});
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -3561,31 +3745,32 @@ function generateRoomCode(){
 }
 
 async function createRoom(){
-    if(!window.firebaseDB){ alert('⏳ Firebase belum siap.'); return; }
+    try {
+    if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
     const player=rankedPlayerData();
     if(!player.name){ alert('⚠️ Isi nama pemain dulu!'); return; }
     stopRankedListeners();
     let code=generateRoomCode();
     for(let i=0;i<5;i++){
-        const snap=await get(ref(window.firebaseDB,'rankedRooms/'+code));
+        const snap=await window.firebaseGet(window.firebaseRef(window.firebaseDB,'rankedRooms/'+code));
         if(!snap.exists()) break;
         code=generateRoomCode();
     }
     rankedRoomCode=code;
-    rankedRoomRef=ref(window.firebaseDB,'rankedRooms/'+code);
-    await set(rankedRoomRef,{
+    rankedRoomRef=window.firebaseRef(window.firebaseDB,'rankedRooms/'+code);
+    await window.firebaseSet(rankedRoomRef,{
         status:'waiting',
         host:player,
         guest:null,
-        createdAt:serverTimestamp(),
-        lastUpdate:serverTimestamp()
+        createdAt:window.firebaseServerTimestamp(),
+        lastUpdate:window.firebaseServerTimestamp()
     });
-    await onDisconnect(rankedRoomRef).update({lastHostDisconnect:serverTimestamp()});
+    await window.firebaseOnDisconnect(rankedRoomRef).update({lastHostDisconnect:window.firebaseServerTimestamp()});
     document.getElementById('room-code-value').textContent=code;
     document.getElementById('ranked-ready-btn').style.display='none';
     rankedSetWaiting('🔑 MENUNGGU LAWAN...', 'Bagikan kode room kepada teman Anda.', true);
     startRankedTimer();
-    rankedRoomUnsub=onValue(rankedRoomRef, snap=>{
+    rankedRoomUnsub=window.firebaseOnValue(rankedRoomRef, snap=>{
         const room=snap.val();
         if(!room) return;
         if(room.guest){
@@ -3598,43 +3783,52 @@ async function createRoom(){
             document.getElementById('waiting-info').textContent='Room siap. Sinkronisasi permainan akan digunakan pada tahap berikutnya.';
         }
     });
+    } catch(e) {
+        console.error('Create Room error:', e);
+        alert('❌ Gagal membuat room: '+(e?.message || e));
+    }
 }
 
 async function joinRoom(){
-    if(!window.firebaseDB){ alert('⏳ Firebase belum siap.'); return; }
+    try {
+    if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
     const name=document.getElementById('ranked-player-name').value.trim();
     const code=document.getElementById('room-code-input').value.trim().toUpperCase();
     if(!name){ alert('⚠️ Isi nama pemain dulu!'); return; }
     if(!/^[A-Z0-9]{6}$/.test(code)){ alert('⚠️ Kode room harus 6 karakter.'); return; }
     stopRankedListeners();
-    const rr=ref(window.firebaseDB,'rankedRooms/'+code);
-    const snap=await get(rr);
+    const rr=window.firebaseRef(window.firebaseDB,'rankedRooms/'+code);
+    const snap=await window.firebaseGet(rr);
     if(!snap.exists()){ alert('❌ Room tidak ditemukan.'); return; }
     const room=snap.val();
     if(room.guest){ alert('❌ Room sudah penuh.'); return; }
     const guest=rankedPlayerData();
-    await update(rr,{guest,status:'ready',lastUpdate:serverTimestamp()});
+    await window.firebaseUpdate(rr,{guest,status:'ready',lastUpdate:window.firebaseServerTimestamp()});
     rankedRoomCode=code; rankedRoomRef=rr;
     document.getElementById('room-code-value').textContent=code;
     document.getElementById('ranked-ready-btn').style.display='inline-block';
     rankedSetWaiting('⚔️ BERHASIL MASUK ROOM','Anda terhubung dengan '+(room.host?.name||'Host')+'.',true);
     startRankedTimer();
-    rankedRoomUnsub=onValue(rr,s=>{
+    rankedRoomUnsub=window.firebaseOnValue(rr,s=>{
         const r=s.val();
         if(r?.status==='starting' || r?.status==='playing'){
             document.getElementById('waiting-title').textContent='🎮 PERTANDINGAN DIMULAI';
             document.getElementById('waiting-info').textContent='Room siap. Sinkronisasi permainan akan digunakan pada tahap berikutnya.';
         }
     });
+    } catch(e) {
+        console.error('Join Room error:', e);
+        alert('❌ Gagal bergabung ke room: '+(e?.message || e));
+    }
 }
 
 async function rankedReady(){
     if(!rankedRoomRef) return;
     try{
-        const snap=await get(rankedRoomRef);
+        const snap=await window.firebaseGet(rankedRoomRef);
         const room=snap.val();
         if(!room?.host || !room?.guest){ alert('⏳ Masih menunggu kedua pemain.'); return; }
-        await update(rankedRoomRef,{status:'starting',lastUpdate:serverTimestamp()});
+        await window.firebaseUpdate(rankedRoomRef,{status:'starting',lastUpdate:window.firebaseServerTimestamp()});
         document.getElementById('ranked-ready-btn').style.display='none';
         document.getElementById('waiting-title').textContent='🚀 ROOM SIAP';
         document.getElementById('waiting-info').textContent='Kedua pemain terhubung. Tahap berikutnya akan menghubungkan state permainan real-time.';
@@ -3642,17 +3836,18 @@ async function rankedReady(){
 }
 
 async function startMatchmaking(){
-    if(!window.firebaseDB){ alert('⏳ Firebase belum siap.'); return; }
+    try {
+    if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
     const player=rankedPlayerData();
     if(!player.name){ alert('⚠️ Isi nama pemain dulu!'); return; }
     stopRankedListeners();
     rankedSetWaiting('🔍 MENCARI LAWAN...','Sedang mencari pemain lain di seluruh dunia');
     startRankedTimer();
-    const queue=ref(window.firebaseDB,'rankedQueue');
+    const queue=window.firebaseRef(window.firebaseDB,'rankedQueue');
     rankedQueueRef=queue;
-    const myRef=push(queue);
-    await set(myRef,{...player,status:'waiting',createdAt:serverTimestamp()});
-    rankedQueueUnsub=onValue(queue, snap=>{
+    const myRef=window.firebasePush(queue);
+    await window.firebaseSet(myRef,{...player,status:'waiting',createdAt:window.firebaseServerTimestamp()});
+    rankedQueueUnsub=window.firebaseOnValue(queue, snap=>{
         const items=snap.val()||{};
         const candidates=Object.entries(items)
           .filter(([k,v])=>k!==myRef.key && v && v.status==='waiting' && v.id!==rankedClientId)
@@ -3660,14 +3855,14 @@ async function startMatchmaking(){
         if(!candidates.length) return;
         const [key,opponent]=candidates[0];
         const roomCode=generateRoomCode();
-        const roomRef=ref(window.firebaseDB,'rankedRooms/'+roomCode);
+        const roomRef=window.firebaseRef(window.firebaseDB,'rankedRooms/'+roomCode);
         const hostIsMe=(player.joinedAt||0) <= (opponent.joinedAt||0);
         const host=hostIsMe?player:opponent;
         const guest=hostIsMe?opponent:player;
-        set(roomRef,{status:'ready',host,guest,createdAt:serverTimestamp(),matchmaking:true})
+        window.firebaseSet(roomRef,{status:'ready',host,guest,createdAt:window.firebaseServerTimestamp(),matchmaking:true})
           .then(()=>{
-              set(myRef,{...player,status:'matched',roomCode});
-              set(ref(window.firebaseDB,'rankedQueue/'+key),{...opponent,status:'matched',roomCode});
+              window.firebaseSet(myRef,{...player,status:'matched',roomCode});
+              window.firebaseSet(window.firebaseRef(window.firebaseDB,'rankedQueue/'+key),{...opponent,status:'matched',roomCode});
               rankedRoomCode=roomCode; rankedRoomRef=roomRef;
               rankedSetWaiting('⚔️ LAWAN DITEMUKAN!',opponent.name+' siap bertanding.');
               document.getElementById('room-code-display').style.display='block';
@@ -3676,6 +3871,10 @@ async function startMatchmaking(){
               if(rankedQueueUnsub){rankedQueueUnsub(); rankedQueueUnsub=null;}
           });
     });
+    } catch(e) {
+        console.error('Matchmaking error:', e);
+        alert('❌ Gagal matchmaking: '+(e?.message || e));
+    }
 }
 
 let rankedTimerInterval=null, rankedTimerStart=0;
@@ -3791,10 +3990,10 @@ function showJoinRoom(){
 async function cancelMatchmaking(){
     if(rankedQueueRef && rankedClientId){
         try{
-            const snap=await get(rankedQueueRef);
+            const snap=await window.firebaseGet(rankedQueueRef);
             const items=snap.val()||{};
             for(const [k,v] of Object.entries(items)){
-                if(v?.id===rankedClientId) await remove(ref(window.firebaseDB,'rankedQueue/'+k));
+                if(v?.id===rankedClientId) await window.firebaseRemove(window.firebaseRef(window.firebaseDB,'rankedQueue/'+k));
             }
         }catch(e){ console.warn('Queue cleanup:',e); }
     }
