@@ -3859,7 +3859,8 @@ async function processOnlineAction(action){
                 await publishOnlineState();
             }
         } else if(action.type==='move'){
-            const isHostOwnOptimistic = action.clientId===rankedClientId && onlinePendingMoveActionId===action.actionId;
+            const myFirebaseUid = window.firebaseAuthUid || rankedClientId;
+            const isHostOwnOptimistic = action.clientId===myFirebaseUid && onlinePendingMoveActionId===action.actionId;
             if(!isHostOwnOptimistic && (GS.phase!=='move' || GS.answerer!==action.player)) return;
             const p=GS.pieces[action.pieceId];
             if(!p || p.captured || p.player!==action.player) return;
