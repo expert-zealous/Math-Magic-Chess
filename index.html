@@ -4095,11 +4095,11 @@ async function rankedReady(){
         document.getElementById('ranked-ready-btn').style.display='none';
         document.getElementById('waiting-title').textContent='🚀 MEMULAI PERTANDINGAN...';
         document.getElementById('waiting-info').textContent='Menyiapkan papan catur online...';
-        // Kedua perangkat akan menerima status starting dan masuk ke papan yang sama.
+        // Mulai lokal SEGERA pada kedua perangkat. Jangan hanya menunggu listener,
+        // karena callback Firebase bisa terlambat/tergantikan oleh listener lain.
+        initOnlineGameFromRoom(room);
+        // Setelah state lokal siap, pasang listener untuk sinkronisasi.
         watchOnlineRoom();
-        setTimeout(()=>{ if(!GS.online) {
-            window.firebaseGet(rankedRoomRef).then(s=>{ const r=s.val(); if(r) initOnlineGameFromRoom(r); });
-        }},300);
     }catch(e){ console.error(e); alert('❌ Gagal memulai room: '+e.message); }
 }
 
@@ -4292,6 +4292,14 @@ function endGame(wi){
     GS.gameOver = true;
     if(GS.qTimer) clearInterval(GS.qTimer);
     hideQ(); hidePSMsg(); clearHL();
+    // Ability panel (termasuk SOUL Necromancer) harus hilang saat pertandingan selesai.
+    const abilityPanel = document.getElementById('ability-panel');
+    if(abilityPanel){
+        abilityPanel.classList.remove('active');
+        abilityPanel.style.display='none';
+    }
+    const soulCounter = document.getElementById('soul-counter');
+    if(soulCounter) soulCounter.style.display='none';
     const w = GS.players[wi], l = GS.players[1-wi];
     
     // === HITUNG POIN ===
@@ -4316,6 +4324,10 @@ function endGame(wi){
 
 // Fungsi baru: Efek kemenangan cinematic
 function triggerVictoryEffect(winnerIdx, winnerName, points){
+    const abilityPanel = document.getElementById('ability-panel');
+    if(abilityPanel){ abilityPanel.classList.remove('active'); abilityPanel.style.display='none'; }
+    const soulCounter = document.getElementById('soul-counter');
+    if(soulCounter) soulCounter.style.display='none';
     // Buat overlay kemenangan
     const overlay = document.createElement('div');
     overlay.id = 'victory-overlay';
