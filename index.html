@@ -3606,6 +3606,11 @@ function applyOnlineState(st){
         const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent=GS.answerer===onlineRoleIndex()?'⚔️ Giliran Anda — pilih bidak!':`⚔️ ${who} sedang bergerak`;
     } else {
         hideQ(); hidePSMsg();
+        if(GS.phase==='gameover' && GS.gameOver){
+            // State final sudah berisi posisi capture terakhir. Render sekali lagi
+            // sebelum layar kemenangan ditampilkan di perangkat lawan.
+            if(renderer && piecesChanged) renderPieces3D();
+        }
         if(GS.phase==='syncing'){
             const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent='⚡ Menyinkronkan langkah…';
         }
@@ -3627,7 +3632,7 @@ function submitOnlineAnswer(value){
       .catch(e=>alert('❌ Gagal mengirim jawaban: '+e.message));
 }
 
-function submitOnlineMove(tr,tc){
+async function submitOnlineMove(tr,tc){
     if(!GS.online || GS.onlineRole===null || !rankedRoomRef || !GS.selectedPiece) return;
     const role=onlineRoleIndex();
     if(GS.phase!=='move' || GS.answerer!==role) return;
@@ -3649,11 +3654,21 @@ function submitOnlineMove(tr,tc){
     if(renderer) renderPieces3D();
     onlineFastTransition=false;
     GS.onlineApplying=false;
-    if(GS.gameOver) return;
-    GS.phase='syncing';
-    const ti=document.getElementById('turn-indicator');
-    if(ti) ti.textContent='⚡ Langkah dikirim…';
-    hidePSMsg();
+
+    // Langkah terakhir (capture Raja) TETAP harus dikirim ke Firebase.
+    // Sebelumnya `if(GS.gameOver) return` menghentikan action sehingga
+    // perangkat lawan tidak pernah menerima posisi Raja yang sudah dimakan.
+    if(GS.gameOver){
+        if(GS.onlineRole==='host'){
+            GS.phase='gameover';
+            await publishOnlineState({phase:'gameover', gameOver:true});
+        }
+    }else{
+        GS.phase='syncing';
+        const ti=document.getElementById('turn-indicator');
+        if(ti) ti.textContent='⚡ Langkah dikirim…';
+        hidePSMsg();
+    }
 
     window.firebasePush(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`),action)
       .catch(e=>{
@@ -3744,7 +3759,11 @@ async function processOnlineAction(action){
             onlinePendingMoveActionId=null;
 
             if(GS.gameOver){
-                await publishOnlineState({phase:'gameover'});
+                // Posisi final sudah diterapkan di Host, termasuk capture Raja.
+                // Kirim state FINAL agar Guest menampilkan papan terakhir yang sama
+                // sebelum/bersamaan dengan layar kemenangan.
+                GS.phase='gameover';
+                await publishOnlineState({phase:'gameover', gameOver:true});
             }else{
                 // JANGAN langsung membuat soal baru. Kirim dulu posisi bidak terbaru
                 // supaya kedua perangkat sempat menampilkan perpindahan yang sama.
