@@ -1738,6 +1738,7 @@
     <!-- FIREBASE SDK -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { 
         getDatabase, ref, set, get, onValue, push, remove, 
         onDisconnect, serverTimestamp, update, off, runTransaction 
@@ -1755,6 +1756,17 @@
     
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+    const auth = getAuth(app);
+    window.firebaseAuth = auth;
+    window.firebaseAuthUid = null;
+    onAuthStateChanged(auth, user => {
+        window.firebaseAuthUid = user ? user.uid : null;
+        if(user){
+            window.dispatchEvent(new CustomEvent("firebaseAuthReady",{detail:{uid:user.uid}}));
+            console.log("🔐 Anonymous auth ready:", user.uid);
+        }
+    });
+    signInAnonymously(auth).catch(err => console.warn("Anonymous Auth belum aktif:", err.message));
     
     // Expose ke window agar bisa diakses dari script biasa
     window.firebaseDB = db;
@@ -1774,6 +1786,17 @@
     window.dispatchEvent(new Event('firebaseReady'));
 </script>
 
+<style id="mmc-economy-rank-ui">
+.mmc-profile-card{margin:0 auto 14px;max-width:760px;padding:12px 14px;border:1px solid rgba(214,177,91,.42);border-radius:16px;background:linear-gradient(135deg,rgba(15,18,38,.94),rgba(35,25,48,.9));box-shadow:0 8px 28px rgba(0,0,0,.25)}
+.mmc-profile-main{display:flex;align-items:center;gap:10px}.mmc-rank-badge{font-size:2rem}.mmc-profile-name{font-weight:900;font-size:1rem;color:#fff}.mmc-profile-rank{font-size:.72rem;color:#d6b15b;margin-top:2px}
+.mmc-profile-stats{display:flex;justify-content:space-around;gap:8px;margin-top:10px;font-size:.78rem;color:#ddd}.mmc-profile-stats span{padding:6px 8px;border-radius:9px;background:rgba(255,255,255,.05)}
+.mmc-leaderboard-btn{margin-top:10px;width:100%;padding:8px;border:1px solid rgba(214,177,91,.45);border-radius:10px;background:rgba(214,177,91,.1);color:#f4d77d;font-weight:800;cursor:pointer}
+.mmc-dashboard{max-width:760px;margin:0 auto 14px;padding:10px;border-radius:14px;background:rgba(8,12,28,.9);border:1px solid rgba(255,255,255,.08)}
+.mmc-dashboard-tabs{display:flex;gap:7px}.mmc-dashboard-tabs button{flex:1;padding:7px;border-radius:9px;border:1px solid rgba(214,177,91,.3);background:rgba(255,255,255,.04);color:#ddd;font-weight:800}
+.mmc-rank-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:8px}.mmc-rank-box{padding:9px;border-radius:9px;background:rgba(255,255,255,.04);text-align:center}.mmc-rank-box b{display:block;font-size:1rem;color:#fff}.mmc-rank-box small{color:#aaa;font-size:.62rem}
+.mmc-leader-row{display:grid;grid-template-columns:34px 1fr 75px 65px;gap:5px;align-items:center;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,.06);font-size:.72rem;color:#ddd}.mmc-leader-row b{color:#fff}.mmc-leader-head{color:#d6b15b;font-weight:800}
+@media(max-width:768px){.mmc-profile-card{padding:9px 10px;margin-bottom:8px}.mmc-rank-badge{font-size:1.55rem}.mmc-profile-name{font-size:.85rem}.mmc-profile-rank{font-size:.62rem}.mmc-profile-stats{font-size:.65rem;margin-top:7px}.mmc-profile-stats span{padding:5px}.mmc-leader-row{grid-template-columns:25px 1fr 58px 50px;font-size:.6rem}.mmc-dashboard{padding:7px}}
+</style>
 <style id="mobile-keypad-fix">
 /* MOBILE KEYPAD FIX: lebih kecil dan seluruh tombol tetap terlihat */
 @media (max-width: 768px) {
@@ -2000,6 +2023,31 @@
                 <div class="commander-select" id="ranked-commanders" style="grid-template-columns: repeat(3, 1fr);"></div>
             </div>
             
+            <div id="ranked-profile-card" class="mmc-profile-card">
+                <div class="mmc-profile-main">
+                    <div class="mmc-rank-badge" id="mmc-rank-badge">🥉</div>
+                    <div>
+                        <div class="mmc-profile-name" id="mmc-profile-name">Pemain</div>
+                        <div class="mmc-profile-rank" id="mmc-profile-rank">Bronze • 1000 Rating</div>
+                    </div>
+                </div>
+                <div class="mmc-profile-stats">
+                    <span>💎 <b id="mmc-diamonds">0</b></span>
+                    <span>🏆 <b id="mmc-wins">0</b></span>
+                    <span>📊 <b id="mmc-games">0</b></span>
+                    <span>🔥 <b id="mmc-streak">0</b></span>
+                </div>
+                <button class="mmc-leaderboard-btn" onclick="toggleMMCDashboard()">🏆 RANK & LEADERBOARD</button>
+            </div>
+            <div id="mmc-dashboard" class="mmc-dashboard" style="display:none;">
+                <div class="mmc-dashboard-tabs">
+                    <button onclick="showMMCTab('rank')">RANK SAYA</button>
+                    <button onclick="showMMCTab('top')">TOP GLOBAL</button>
+                </div>
+                <div id="mmc-rank-tab"></div>
+                <div id="mmc-top-tab" style="display:none;"></div>
+            </div>
+
             <div class="ranked-info-cards">
                 <div class="ranked-info-card">
                     <div class="ranked-info-icon">🎯</div>
@@ -2019,7 +2067,7 @@
                     <div class="ranked-info-icon">💎</div>
                     <div class="ranked-info-text">
                         <div class="ranked-info-title">Reward</div>
-                        <div class="ranked-info-desc">Menang: +200 poin</div>
+                        <div class="ranked-info-desc">Menang: +250 💎 • Kalah: +75 💎</div>
                     </div>
                 </div>
             </div>
@@ -2249,16 +2297,16 @@ const COMMANDERS = [
     // === PREMIUM TERKUNCI (Butuh Poin) === 
     // ⚠️ Anda HARUS menyediakan file: archmage.png, paladin.png, shadow_assassin.png
     { id:'archmage', name:'Archmage', emoji:'🔮', hp:85, 
-      power:'🛡️ Arcane Shield', desc:'Damage salah hanya 50%', image:'archmage.png', locked:true, unlockCost:10000 },
+      power:'🛡️ Arcane Shield', desc:'Damage salah hanya 50%', image:'archmage.png', locked:true, unlockCost:5000 },
     { id:'paladin', name:'Paladin', emoji:'⚔️', hp:130, 
-      power:'✝️ Divine Guard', desc:'1x/game tolak damage', image:'paladin.png', locked:true, unlockCost:3000 },
+      power:'✝️ Divine Guard', desc:'1x/game tolak damage', image:'paladin.png', locked:true, unlockCost:10000 },
     { id:'shadow_assassin', name:'Shadow Blade', emoji:'🗡️', hp:70, 
-      power:'🩸 Life Steal', desc:'+4 HP setiap benar', image:'shadow_assassin.png', locked:true, unlockCost:5000 },
+      power:'🩸 Life Steal', desc:'+4 HP setiap benar', image:'shadow_assassin.png', locked:true, unlockCost:15000 },
        // === KARAKTER PREMIUM BARU (LEGENDARY) ===
     { id:'chronomancer', name:'Chronomancer', emoji:'⏰', hp:95, 
-      power:'⏰ Time Rewind', desc:'1x/game UNDO langkah lawan', image:'chronomancer.png', locked:true, unlockCost:7500 },
+      power:'⏰ Time Rewind', desc:'1x/game UNDO langkah lawan', image:'chronomancer.png', locked:true, unlockCost:20000 },
     { id:'necromancer', name:'Necromancer', emoji:'💀', hp:75, 
-      power:'💀 Soul Resurrect', desc:'3x benar → bidak hidup lagi!', image:'necromancer.png', locked:true, unlockCost:10000 },
+      power:'💀 Soul Resurrect', desc:'3x benar → bidak hidup lagi!', image:'necromancer.png', locked:true, unlockCost:30000 },
 ];
 
 let PLAYER_POINTS = 0; // 💎 Poin pemain / diamond disimpan di localStorage
@@ -3655,6 +3703,13 @@ function applyOnlineState(st){
             // Guest harus menampilkan kemenangan yang sama tanpa menghitung poin dua kali.
             if(!GS.victoryShown && GS.victoryWinnerIndex >= 0 && GS.players[GS.victoryWinnerIndex]){
                 GS.victoryShown = true;
+                const localWon = GS.victoryWinnerIndex === onlineRoleIndex();
+                const result = settleMMCRankResult(localWon);
+                GS.victoryPoints = result.diamondReward;
+                GS.victoryRank = result.rank.name;
+                GS.victoryRating = result.rating;
+                publishMMCRankProfile();
+                updateMMCProfileUI();
                 setTimeout(()=>{
                     triggerVictoryEffect(GS.victoryWinnerIndex, GS.players[GS.victoryWinnerIndex].name, GS.victoryPoints);
                 }, 120);
@@ -3809,6 +3864,7 @@ async function processOnlineAction(action){
 
             if(GS.gameOver){
                 // Posisi final sudah diterapkan di Host, termasuk capture Raja.
+                if(GS.onlineRole==='host') scheduleRoomCleanup();
                 // Kirim state FINAL agar Guest menampilkan papan terakhir yang sama
                 // sebelum/bersamaan dengan layar kemenangan.
                 GS.phase='gameover';
@@ -4189,7 +4245,7 @@ if(!rankedClientId){
 function rankedPlayerData(){
     const name = document.getElementById('ranked-player-name').value.trim();
     return {
-        id: rankedClientId,
+        id: window.firebaseAuthUid || rankedClientId,
         name,
         commanderIndex: rankedSelCmd,
         commanderId: COMMANDERS[rankedSelCmd]?.id || null,
@@ -4210,6 +4266,9 @@ function rankedSetWaiting(title, info, showCode=false){
 function stopRankedListeners(){
     if(rankedRoomUnsub){ rankedRoomUnsub(); rankedRoomUnsub=null; }
     if(rankedQueueUnsub){ rankedQueueUnsub(); rankedQueueUnsub=null; }
+    if(window.onlineActionsUnsub){ window.onlineActionsUnsub(); window.onlineActionsUnsub=null; }
+    if(mmcConnectionUnsub){ mmcConnectionUnsub(); mmcConnectionUnsub=null; }
+    if(mmcRoomCleanupTimer){ clearTimeout(mmcRoomCleanupTimer); mmcRoomCleanupTimer=null; }
     rankedRoomRef=null; rankedQueueRef=null;
     rankedRoomCode=null;
 }
@@ -4221,6 +4280,52 @@ function generateRoomCode(){
     return code;
 }
 
+let mmcConnectionUnsub=null, mmcPresenceUnsub=null, mmcRoomCleanupTimer=null;
+function setupMMCConnection(){
+    if(!window.firebaseDB || !rankedRoomRef || !window.firebaseOnValue)return;
+    if(mmcConnectionUnsub) mmcConnectionUnsub();
+    const connRef=window.firebaseRef(window.firebaseDB,'.info/connected');
+    mmcConnectionUnsub=window.firebaseOnValue(connRef, async snap=>{
+        const connected=snap.val()===true;
+        const role=GS.onlineRole || (rankedRoomRef && rankedClientId ? 'host' : null);
+        if(!connected){
+            const t=document.getElementById('turn-indicator'); if(t)t.textContent='📡 Koneksi terputus… mencoba kembali';
+            return;
+        }
+        if(rankedRoomRef && rankedRoomCode){
+            const id=window.firebaseAuthUid||rankedClientId;
+            try{
+                await window.firebaseUpdate(window.firebaseRef(window.firebaseDB,`rankedRooms/${rankedRoomCode}/presence/${role==='guest'?'guest':'host'}`),{id,status:'online',at:window.firebaseServerTimestamp()});
+                if(GS.online && role){ watchOnlineRoom(); }
+            }catch(e){console.warn('Reconnect presence:',e.message);}
+        }
+    });
+}
+async function setupRoomPresence(role){
+    if(!rankedRoomRef||!rankedRoomCode||!window.firebaseDB)return;
+    const path=`rankedRooms/${rankedRoomCode}/presence/${role}`;
+    const pr=window.firebaseRef(window.firebaseDB,path);
+    try{
+        await window.firebaseSet(pr,{id:window.firebaseAuthUid||rankedClientId,status:'online',at:window.firebaseServerTimestamp()});
+        await window.firebaseOnDisconnect(pr).set({id:window.firebaseAuthUid||rankedClientId,status:'offline',at:window.firebaseServerTimestamp()});
+        setupMMCConnection();
+    }catch(e){console.warn('Presence setup:',e.message);}
+}
+async function scheduleRoomCleanup(){
+    if(!rankedRoomRef)return;
+    try{
+        await window.firebaseUpdate(rankedRoomRef,{expiresAt:Date.now()+90000});
+    }catch(e){}
+    if(mmcRoomCleanupTimer)clearTimeout(mmcRoomCleanupTimer);
+    mmcRoomCleanupTimer=setTimeout(async()=>{
+        try{
+            const snap=await window.firebaseGet(rankedRoomRef),room=snap.val();
+            if(room && room.status!=='playing' && room.expiresAt && Date.now()>room.expiresAt && room.host?.id===(window.firebaseAuthUid||rankedClientId)){
+                await window.firebaseRemove(rankedRoomRef);
+            }
+        }catch(e){}
+    },95000);
+}
 async function createRoom(){
     try {
     if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
@@ -4242,7 +4347,9 @@ async function createRoom(){
         createdAt:window.firebaseServerTimestamp(),
         lastUpdate:window.firebaseServerTimestamp()
     });
-    await window.firebaseOnDisconnect(rankedRoomRef).update({lastHostDisconnect:window.firebaseServerTimestamp()});
+    await window.firebaseOnDisconnect(rankedRoomRef).update({status:'abandoned',lastHostDisconnect:window.firebaseServerTimestamp(),expiresAt:Date.now()+90000});
+    await setupRoomPresence('host');
+    await scheduleRoomCleanup();
     document.getElementById('room-code-value').textContent=code;
     document.getElementById('ranked-ready-btn').style.display='none';
     rankedSetWaiting('🔑 MENUNGGU LAWAN...', 'Bagikan kode room kepada teman Anda.', true);
@@ -4283,6 +4390,7 @@ async function joinRoom(){
     const guest=rankedPlayerData();
     await window.firebaseUpdate(rr,{guest,status:'ready',lastUpdate:window.firebaseServerTimestamp()});
     rankedRoomCode=code; rankedRoomRef=rr;
+    await setupRoomPresence('guest');
     document.getElementById('room-code-value').textContent=code;
     document.getElementById('ranked-ready-btn').style.display='inline-block';
     rankedSetWaiting('⚔️ BERHASIL MASUK ROOM','Anda terhubung dengan '+(room.host?.name||'Host')+'.',true);
@@ -4314,6 +4422,7 @@ async function rankedReady(){
         // Mulai lokal SEGERA pada kedua perangkat. Jangan hanya menunggu listener,
         // karena callback Firebase bisa terlambat/tergantikan oleh listener lain.
         initOnlineGameFromRoom(room);
+        await setupRoomPresence(room.host.id=== (window.firebaseAuthUid||rankedClientId) ? 'host' : 'guest');
         // Setelah state lokal siap, pasang listener untuk sinkronisasi.
         watchOnlineRoom();
     }catch(e){ console.error(e); alert('❌ Gagal memulai room: '+e.message); }
@@ -4331,30 +4440,57 @@ async function startMatchmaking(){
     rankedQueueRef=queue;
     const myRef=window.firebasePush(queue);
     await window.firebaseSet(myRef,{...player,status:'waiting',createdAt:window.firebaseServerTimestamp()});
+    try{ await window.firebaseOnDisconnect(myRef).remove(); }catch(e){}
     rankedQueueUnsub=window.firebaseOnValue(queue, snap=>{
         const items=snap.val()||{};
         const candidates=Object.entries(items)
-          .filter(([k,v])=>k!==myRef.key && v && v.status==='waiting' && v.id!==rankedClientId)
+          .filter(([k,v])=>k!==myRef.key && v && v.status==='waiting' && v.id!==(window.firebaseAuthUid||rankedClientId))
           .sort((a,b)=>(a[1].joinedAt||0)-(b[1].joinedAt||0));
         if(!candidates.length) return;
         const [key,opponent]=candidates[0];
-        const roomCode=generateRoomCode();
+        // Deterministic host + room code: hanya host yang membuat room.
+        const ids=[player.id,opponent.id].sort();
+        let hash=0; const seed=ids.join('|');
+        for(let i=0;i<seed.length;i++) hash=((hash<<5)-hash+seed.charCodeAt(i))|0;
+        const roomCode=('MM'+Math.abs(hash).toString(36).toUpperCase().padStart(6,'0')).slice(0,6);
         const roomRef=window.firebaseRef(window.firebaseDB,'rankedRooms/'+roomCode);
-        const hostIsMe=(player.joinedAt||0) <= (opponent.joinedAt||0);
+        const hostIsMe=player.id===ids[0];
         const host=hostIsMe?player:opponent;
         const guest=hostIsMe?opponent:player;
-        window.firebaseSet(roomRef,{status:'ready',host,guest,createdAt:window.firebaseServerTimestamp(),matchmaking:true})
-          .then(()=>{
-              window.firebaseSet(myRef,{...player,status:'matched',roomCode});
-              window.firebaseSet(window.firebaseRef(window.firebaseDB,'rankedQueue/'+key),{...opponent,status:'matched',roomCode});
-              rankedRoomCode=roomCode; rankedRoomRef=roomRef;
-              rankedSetWaiting('⚔️ LAWAN DITEMUKAN!',opponent.name+' siap bertanding.');
-              document.getElementById('room-code-display').style.display='block';
-              document.getElementById('room-code-value').textContent=roomCode;
-              document.getElementById('ranked-ready-btn').style.display='inline-block';
-              if(rankedQueueUnsub){rankedQueueUnsub(); rankedQueueUnsub=null;}
-          });
-    });
+
+        if(hostIsMe){
+            window.firebaseSet(roomRef,{status:'ready',host,guest,createdAt:window.firebaseServerTimestamp(),matchmaking:true})
+              .then(async()=>{
+                  await window.firebaseSet(myRef,{...player,status:'matched',roomCode});
+                  rankedRoomCode=roomCode; rankedRoomRef=roomRef;
+                  await setupRoomPresence('host');
+                  rankedSetWaiting('⚔️ LAWAN DITEMUKAN!',opponent.name+' siap bertanding.');
+                  document.getElementById('room-code-display').style.display='block';
+                  document.getElementById('room-code-value').textContent=roomCode;
+                  document.getElementById('ranked-ready-btn').style.display='inline-block';
+                  if(rankedQueueUnsub){rankedQueueUnsub(); rankedQueueUnsub=null;}
+              }).catch(e=>console.warn('Match create:',e.message));
+        }else{
+            // Guest cukup menunggu room deterministik dibuat oleh host.
+            rankedRoomCode=roomCode; rankedRoomRef=roomRef;
+            rankedSetWaiting('⚔️ LAWAN DITEMUKAN!',opponent.name+' menyiapkan room.');
+            document.getElementById('room-code-display').style.display='block';
+            document.getElementById('room-code-value').textContent=roomCode;
+            window.firebaseSet(myRef,{...player,status:'matched',roomCode}).catch(()=>{});
+            if(rankedQueueUnsub){rankedQueueUnsub(); rankedQueueUnsub=null;}
+            if(rankedRoomUnsub) rankedRoomUnsub();
+            rankedRoomUnsub=window.firebaseOnValue(roomRef, async rs=>{
+                const room=rs.val();
+                if(!room) return;
+                if(room.guest && room.host){
+                    await setupRoomPresence('guest');
+                    document.getElementById('ranked-ready-btn').style.display='inline-block';
+                    document.getElementById('waiting-title').textContent='⚔️ LAWAN DITEMUKAN!';
+                    document.getElementById('waiting-info').textContent=room.host.name+' siap bertanding.';
+                }
+            });
+        }
+    });;
     } catch(e) {
         console.error('Matchmaking error:', e);
         alert('❌ Gagal matchmaking: '+(e?.message || e));
@@ -4371,6 +4507,45 @@ function startRankedTimer(){
     },1000);
 }
 
+async function toggleMMCDashboard(){
+    const d=document.getElementById('mmc-dashboard');
+    if(!d)return;
+    d.style.display=d.style.display==='none'?'block':'none';
+    if(d.style.display!=='none'){showMMCTab('rank'); loadMMCLeaderboard();}
+}
+function showMMCTab(tab){
+    const rank=document.getElementById('mmc-rank-tab'), top=document.getElementById('mmc-top-tab');
+    if(!rank||!top)return;
+    rank.style.display=tab==='rank'?'block':'none'; top.style.display=tab==='top'?'block':'none';
+    if(tab==='rank'){
+        const p=getMMCProfile(),r=getMMCRank(p.rating);
+        rank.innerHTML=`<div class="mmc-rank-grid">
+          <div class="mmc-rank-box"><b>${r.icon} ${r.name}</b><small>Rank sekarang</small></div>
+          <div class="mmc-rank-box"><b>${p.rating}</b><small>Rating</small></div>
+          <div class="mmc-rank-box"><b>${p.wins}/${p.losses}</b><small>Menang/Kalah</small></div>
+          <div class="mmc-rank-box"><b>💎 ${p.diamonds.toLocaleString('id-ID')}</b><small>Diamond</small></div>
+        </div>`;
+    }
+}
+async function publishMMCRankProfile(){
+    if(!window.firebaseDB || !window.firebaseAuthUid)return;
+    const p=getMMCProfile(),r=getMMCRank(p.rating);
+    const name=(document.getElementById('ranked-player-name')?.value||localStorage.getItem('mc_ranked_name')||'Pemain').trim();
+    try{
+        await window.firebaseUpdate(window.firebaseRef(window.firebaseDB,'leaderboard/'+window.firebaseAuthUid),{
+            name:name.slice(0,15),rating:p.rating,rank:r.name,wins:p.wins,games:p.games,streak:p.streak,updatedAt:window.firebaseServerTimestamp()
+        });
+    }catch(e){console.warn('Leaderboard publish:',e.message);}
+}
+async function loadMMCLeaderboard(){
+    const top=document.getElementById('mmc-top-tab'); if(!top||!window.firebaseDB)return;
+    try{
+        const snap=await window.firebaseGet(window.firebaseRef(window.firebaseDB,'leaderboard'));
+        const rows=Object.values(snap.val()||{}).filter(Boolean).sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,10);
+        top.innerHTML='<div class="mmc-leader-row mmc-leader-head"><span>#</span><span>Pemain</span><span>Rank</span><span>Rating</span></div>'+
+          (rows.length?rows.map((x,i)=>`<div class="mmc-leader-row"><span>${i+1}</span><span><b>${String(x.name||'Pemain').replace(/[<>&"]/g,'')}</b></span><span>${x.rank||'Bronze'}</span><span>${x.rating||1000}</span></div>`).join(''):'<div style="padding:12px;text-align:center;color:#aaa">Belum ada data global.</div>');
+    }catch(e){top.innerHTML='<div style="padding:12px;color:#f88">Leaderboard belum dapat dimuat.</div>';}
+}
 // ============================================
 // RANKED MODE - TAHAP 1 (Buka Menu)
 // ============================================
@@ -4394,6 +4569,8 @@ function openRankedMenu(){
     
     // Render commander selection
     renderRankedCommanders();
+    updateMMCProfileUI();
+    publishMMCRankProfile();
 }
 
 let rankedSelCmd = 0;
@@ -4529,25 +4706,28 @@ function endGame(wi){
     if(soulCounter) soulCounter.style.display='none';
     const w = GS.players[wi], l = GS.players[1-wi];
     
-    // === HITUNG POIN ===
+    // === REWARD & RANK ===
+    const isRankedOnline = GS.online && GS.mode==='pvp';
     let ptsEarned = 0;
-    if(wi === 0){
-        ptsEarned += 100;
-    } else {
-        ptsEarned += 20;
+    if(isRankedOnline){
+        const localWon = wi === onlineRoleIndex();
+        const result = settleMMCRankResult(localWon);
+        ptsEarned = result.diamondReward;
+        GS.victoryRank = result.rank.name;
+        GS.victoryRating = result.rating;
+    }else{
+        // Mode lokal: tetap memberi diamond, tetapi lebih kecil dari Ranked.
+        ptsEarned = 50 + (GS.moves*2) + ((w.correct||0)*10);
+        addPoints(ptsEarned);
     }
-    ptsEarned += (GS.moves * 2); 
-    ptsEarned += (w.correct || 0) * 10;
-    if(COMMANDERS[selCmd[0]].locked === false && COMMANDERS[selCmd[0]].image) ptsEarned += 20;
-    
+
     GS.victoryWinnerIndex = wi;
     GS.victoryPoints = ptsEarned;
     GS.victoryShown = true;
 
-    addPoints(ptsEarned);
-    PLAYER_POINTS = getPoints(); 
-    
     saveHist(w.name, l.name, GS.mode, GS.moves, w.correct, w.wrong);
+    if(isRankedOnline) publishMMCRankProfile();
+    updateMMCProfileUI();
 
     // === EFEK CINEMATIC SEBELUM PINDAH KE GAMEOVER SCREEN ===
     triggerVictoryEffect(wi, w.name, ptsEarned);
@@ -4569,7 +4749,7 @@ function triggerVictoryEffect(winnerIdx, winnerName, points){
             <div class="victory-main-text">CHECKMATE!</div>
             <div class="victory-winner-name">${winnerName}</div>
             <div class="victory-subtitle">MENANG!</div>
-            <div class="victory-points">+${points} POIN</div>
+            <div class="victory-points">+${points} 💎</div><div style="margin-top:8px;font-size:.8rem;color:#d6b15b;">${GS.victoryRank?`🏆 ${GS.victoryRank} • ${GS.victoryRating} Rating`:''}</div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -4590,7 +4770,7 @@ function triggerVictoryEffect(winnerIdx, winnerName, points){
             document.getElementById('game-stats').innerHTML = `
                 <div class="stat-card"><div class="stat-value">${GS.moves}</div><div class="stat-label">Total Langkah</div></div>
                 <div class="stat-card"><div class="stat-value">${GS.players[winnerIdx].correct}</div><div class="stat-label">Benar</div></div>
-                <div class="stat-card"><div class="stat-value">${points}</div><div class="stat-label">Poin Didapat</div></div>
+                <div class="stat-card"><div class="stat-value">💎 ${points}</div><div class="stat-label">Diamond Didapat</div></div><div class="stat-card"><div class="stat-value">${GS.victoryRank||"-"}</div><div class="stat-label">Rank</div></div>
                 <div class="stat-card"><div class="stat-value">${Math.max(0, GS.players[winnerIdx].hp)}</div><div class="stat-label">HP Tersisa</div></div>
                 <div class="stat-card"><div class="stat-value">${GS.mode==='ai'?'🤖 VS AI':'👥 PVP'}</div><div class="stat-label">Mode</div></div>
             `;
@@ -4750,21 +4930,54 @@ document.addEventListener('keydown', e=>{
 // =====================================
 // SISTEM POIN & UNLOCK
 // =====================================
-function getPoints(){
-    // Ambil dari localStorage jika ada, jika tidak mulai 0
-    const saved = localStorage.getItem('mc_points');
-    return saved ? parseInt(saved) : 0;
+const MMC_RANKS = [
+    {id:'bronze',name:'Bronze',min:0,icon:'🥉'},
+    {id:'silver',name:'Silver',min:1100,icon:'🥈'},
+    {id:'gold',name:'Gold',min:1250,icon:'🥇'},
+    {id:'platinum',name:'Platinum',min:1400,icon:'💠'},
+    {id:'diamond',name:'Diamond',min:1600,icon:'💎'},
+    {id:'master',name:'Master',min:1800,icon:'👑'}
+];
+const MMC_PROFILE_KEY='mmc_profile_v2';
+function defaultMMCProfile(){
+    const old=localStorage.getItem('mc_points');
+    return {diamonds:old?parseInt(old)||0:0,rating:1000,wins:0,losses:0,games:0,streak:0,bestStreak:0};
 }
-
-function savePoints(){
-    localStorage.setItem('mc_points', PLAYER_POINTS.toString());
+function getMMCProfile(){
+    try{return {...defaultMMCProfile(),...(JSON.parse(localStorage.getItem(MMC_PROFILE_KEY)||'{}'))};}
+    catch(e){return defaultMMCProfile();}
 }
-
-function addPoints(amount){
-    PLAYER_POINTS += amount;
-    savePoints();
+function saveMMCProfile(profile){
+    localStorage.setItem(MMC_PROFILE_KEY,JSON.stringify(profile));
+    PLAYER_POINTS=profile.diamonds;
+    localStorage.setItem('mc_points',String(profile.diamonds));
+    updatePointsDisplay(); updateMMCProfileUI();
 }
-
+function getPoints(){ return getMMCProfile().diamonds; }
+function savePoints(){ const p=getMMCProfile(); p.diamonds=PLAYER_POINTS; saveMMCProfile(p); }
+function addPoints(amount){ const p=getMMCProfile(); p.diamonds=Math.max(0,p.diamonds+Math.max(0,Math.round(amount))); saveMMCProfile(p); }
+function getMMCRank(rating){
+    let r=MMC_RANKS[0]; for(const x of MMC_RANKS){if(rating>=x.min)r=x;} return r;
+}
+function updateMMCProfileUI(){
+    const p=getMMCProfile(), r=getMMCRank(p.rating);
+    const name=(document.getElementById('ranked-player-name')?.value||localStorage.getItem('mc_ranked_name')||'Pemain').trim()||'Pemain';
+    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+    set('mmc-profile-name',name); set('mmc-profile-rank',`${r.name} • ${p.rating} Rating`);
+    set('mmc-rank-badge',r.icon); set('mmc-diamonds',p.diamonds.toLocaleString('id-ID'));
+    set('mmc-wins',p.wins); set('mmc-games',p.games); set('mmc-streak',p.streak);
+    updatePointsDisplay();
+}
+function settleMMCRankResult(won){
+    const p=getMMCProfile();
+    p.games++;
+    if(won){p.wins++;p.streak++;p.bestStreak=Math.max(p.bestStreak,p.streak);p.rating+=30;}
+    else {p.losses++;p.streak=0;p.rating=Math.max(0,p.rating-20);}
+    const diamondReward=won ? 250 + (p.streak>=3 ? 100 : 0) : 75;
+    p.diamonds+=diamondReward;
+    saveMMCProfile(p);
+    return {diamondReward,rating:p.rating,rank:getMMCRank(p.rating)};
+}
 function canSelectCommander(cmd){ return isCommanderUnlocked(cmd); }
 function exitGame(){
     if(confirm('Yakin ingin keluar dari Math Magic Chess?')){
@@ -4811,5 +5024,12 @@ if('serviceWorker' in navigator){
     });
 }
 </script>
+window.addEventListener('firebaseAuthReady', ()=>{
+    if(window.firebaseAuthUid){
+        rankedClientId=window.firebaseAuthUid;
+        localStorage.setItem('mmc_client_id',rankedClientId);
+        updateMMCProfileUI();
+    }
+});
 </body>
 </html>
