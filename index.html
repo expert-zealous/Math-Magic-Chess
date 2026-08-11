@@ -4449,20 +4449,65 @@ async function rankedReady(){
     try{
         const snap=await window.firebaseGet(rankedRoomRef);
         const room=snap.val();
-        if(!room?.host || !room?.guest){ alert('⏳ Masih menunggu kedua pemain.'); return; }
-        await window.firebaseUpdate(rankedRoomRef,{status:'starting',lastUpdate:window.firebaseServerTimestamp()});
+        if(!room?.host || !room?.guest){
+            alert('⏳ Masih menunggu kedua pemain.');
+            return;
+        }
+
+        const myUid=window.firebaseAuthUid || rankedClientId;
+        const amHost=String(room.host.id)===String(myUid);
+
+        // START dibuat idempotent. Hanya Host yang mengubah status room.
+        // Guest cukup membaca status dari Firebase sehingga tidak terkena
+        // PERMISSION_DENIED ketika menekan tombol Mulai Pertandingan.
+        let startRoom=room;
+        if(room.status==='waiting' || room.status==='ready'){
+            if(amHost){
+                await window.firebaseUpdate(rankedRoomRef,{
+                    status:'starting',
+                    lastUpdate:window.firebaseServerTimestamp()
+                });
+                const latest=await window.firebaseGet(rankedRoomRef);
+                startRoom=latest.val() || {...room,status:'starting'};
+            }else{
+                // Guest tidak menulis status. Tunggu Host memulai.
+                document.getElementById('ranked-ready-btn').style.display='none';
+                document.getElementById('waiting-title').textContent='⏳ MENUNGGU HOST MEMULAI...';
+                document.getElementById('waiting-info').textContent='Host sedang memulai pertandingan.';
+                watchOnlineRoom();
+                return;
+            }
+        }else if(room.status==='starting' || room.status==='playing'){
+            // Pemain yang terlambat menekan tombol cukup masuk ke game.
+            startRoom=room;
+        }else{
+            alert('❌ Status room tidak dapat dimulai. Silakan buat room baru.');
+            return;
+        }
+
         document.getElementById('ranked-ready-btn').style.display='none';
         document.getElementById('waiting-title').textContent='🚀 MEMULAI PERTANDINGAN...';
         document.getElementById('waiting-info').textContent='Menyiapkan papan catur online...';
-        // Mulai lokal SEGERA pada kedua perangkat. Jangan hanya menunggu listener,
-        // karena callback Firebase bisa terlambat/tergantikan oleh listener lain.
-        initOnlineGameFromRoom(room);
-        await setupRoomPresence(room.host.id=== (window.firebaseAuthUid||rankedClientId) ? 'host' : 'guest');
-        // Setelah state lokal siap, pasang listener untuk sinkronisasi.
-        watchOnlineRoom();
-    }catch(e){ console.error(e); alert('❌ Gagal memulai room: '+e.message); }
-}
 
+        // Mulai lokal segera. initOnlineGameFromRoom memiliki guard agar
+        // pemanggilan ganda tidak membuat papan/soal ganda.
+        initOnlineGameFromRoom(startRoom);
+
+        // Presence bukan syarat dimulainya pertandingan. Jika gagal karena
+        // koneksi/rules sementara, jangan membatalkan start yang sudah sukses.
+        try{
+            await setupRoomPresence(amHost?'host':'guest');
+        }catch(presenceErr){
+            console.warn('Presence setelah start:',presenceErr?.message||presenceErr);
+        }
+
+        // Listener sinkronisasi tetap dipasang.
+        watchOnlineRoom();
+    }catch(e){
+        console.error('Start Room error:', e);
+        alert('❌ Gagal memulai room: '+(e?.message || e));
+    }
+}
 async function startMatchmaking(){
     try {
     if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
