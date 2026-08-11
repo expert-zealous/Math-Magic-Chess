@@ -2284,6 +2284,9 @@ let GS = {
     timerVal:100,
     moves:0,
     gameOver:false,
+    victoryShown:false,
+    victoryWinnerIndex:-1,
+    victoryPoints:0,
     answerer:-1,
     // === PROPERTI BARU ===
     lastMove: null,        // Untuk Chronomancer: menyimpan langkah terakhir
@@ -2504,6 +2507,9 @@ function startGame(){
     GS.phase = 'question'; 
     GS.moves = 0; 
     GS.gameOver = false; 
+    GS.victoryShown = false;
+    GS.victoryWinnerIndex = -1;
+    GS.victoryPoints = 0;
     GS.answerer = -1;
     GS.lastMove = null;
     GS.chronoUsed = [false, false];
@@ -2574,15 +2580,16 @@ function initThreeJS(){
     const isMobile = window.matchMedia('(pointer: coarse)').matches ||
                      navigator.maxTouchPoints > 0 ||
                      Math.min(window.innerWidth, window.innerHeight) < 700;
-    const camY = isMobile ? 24 : 24;
-    const camZ = isMobile ? 16 : 18;
-    const camFov = isMobile ? 40 : 42;
+    const camY = isMobile ? 24.5 : 24;
+    const camZ = isMobile ? 17.8 : 18;
+    const camFov = isMobile ? 40.5 : 42;
     camera.fov = camFov;
     camera.updateProjectionMatrix();
 
     const viewFromGuest = GS.online && GS.onlineRole === 'guest';
     camera.position.set(0, camY, viewFromGuest ? -camZ : camZ);
-    camera.lookAt(0, viewFromGuest ? (isMobile ? 1.15 : 0.5) : (isMobile ? -1.15 : -0.5), 0);
+    // Frame mobile lebih aman: seluruh baris bidak bawah tetap masuk layar.
+    camera.lookAt(0, viewFromGuest ? (isMobile ? 0.65 : 0.5) : (isMobile ? -0.65 : -0.5), 0);
 
     renderer=new THREE.WebGLRenderer({canvas, antialias:true});
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -2592,28 +2599,19 @@ function initThreeJS(){
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure=1.3;
 
-    // Lights
-    scene.add(new THREE.AmbientLight(0x505080, 0.6));
-    
-    const dl=new THREE.DirectionalLight(0xffeedd, 0.8);
-    dl.position.set(5, 14, 8);
+    // Lights: dibuat simetris supaya papan HP tidak terang di kiri dan gelap di kanan.
+    scene.add(new THREE.AmbientLight(0x777790, 0.82));
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x242038, 0.72);
+    hemi.position.set(0, 12, 0);
+    scene.add(hemi);
+
+    const dl=new THREE.DirectionalLight(0xfff5df, 0.42);
+    dl.position.set(0, 16, 0);
     dl.castShadow=true;
-    dl.shadow.mapSize.set(2048, 2048);
+    dl.shadow.mapSize.set(1024, 1024);
     dl.shadow.camera.left=-8; dl.shadow.camera.right=8;
     dl.shadow.camera.top=8; dl.shadow.camera.bottom=-8;
     scene.add(dl);
-
-        const pl1 = new THREE.PointLight(0x4466ff, 0.4, 20);
-    pl1.position.set(-6, 6, -6);
-    scene.add(pl1);
-    
-    const pl2 = new THREE.PointLight(0xff4444, 0.4, 20);
-    pl2.position.set(6, 6, 6);
-    scene.add(pl2);
-    
-    const pl3 = new THREE.PointLight(0xffd700, 0.3, 15);
-    pl3.position.set(0, 10, 0);
-    scene.add(pl3);
 
     // Board frame
     const frameGeo = new THREE.BoxGeometry(BOARD_SIZE*TILE_SIZE + 1.4, 0.5, BOARD_SIZE*TILE_SIZE + 1.4);
@@ -3558,6 +3556,8 @@ function serializeOnlineState(){
         answerer: GS.answerer,
         moves: GS.moves,
         gameOver: GS.gameOver,
+        victoryWinnerIndex: GS.victoryWinnerIndex ?? -1,
+        victoryPoints: GS.victoryPoints || 0,
         currentQuestion: GS.currentQuestion ? {text:GS.currentQuestion.text, answer:GS.currentQuestion.answer} : null,
         timerMax: GS.timerMax || 100,
         timerVal: GS.timerVal || 100,
@@ -3600,6 +3600,8 @@ function applyOnlineState(st){
     GS.answerer=st.answerer ?? -1;
     GS.moves=st.moves || 0;
     GS.gameOver=!!st.gameOver;
+    GS.victoryWinnerIndex = Number.isInteger(st.victoryWinnerIndex) ? st.victoryWinnerIndex : GS.victoryWinnerIndex;
+    GS.victoryPoints = Number(st.victoryPoints || GS.victoryPoints || 0);
     GS.currentQuestion=st.currentQuestion || null;
     GS.timerMax=st.timerMax || 100;
     GS.timerVal=st.timerVal ?? GS.timerMax;
@@ -3649,6 +3651,14 @@ function applyOnlineState(st){
             // State final sudah berisi posisi capture terakhir. Render sekali lagi
             // sebelum layar kemenangan ditampilkan di perangkat lawan.
             if(renderer && piecesChanged) renderPieces3D();
+            // Host yang menang sebelumnya sudah menampilkan kemenangan lokal.
+            // Guest harus menampilkan kemenangan yang sama tanpa menghitung poin dua kali.
+            if(!GS.victoryShown && GS.victoryWinnerIndex >= 0 && GS.players[GS.victoryWinnerIndex]){
+                GS.victoryShown = true;
+                setTimeout(()=>{
+                    triggerVictoryEffect(GS.victoryWinnerIndex, GS.players[GS.victoryWinnerIndex].name, GS.victoryPoints);
+                }, 120);
+            }
         }
         if(GS.phase==='syncing'){
             const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent='⚡ Menyinkronkan langkah…';
@@ -4530,6 +4540,10 @@ function endGame(wi){
     ptsEarned += (w.correct || 0) * 10;
     if(COMMANDERS[selCmd[0]].locked === false && COMMANDERS[selCmd[0]].image) ptsEarned += 20;
     
+    GS.victoryWinnerIndex = wi;
+    GS.victoryPoints = ptsEarned;
+    GS.victoryShown = true;
+
     addPoints(ptsEarned);
     PLAYER_POINTS = getPoints(); 
     
