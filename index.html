@@ -3209,6 +3209,14 @@ function doMove(p, tr, tc){
 // ========================================
 function generateQuestion(){
     if(GS.gameOver) return;
+
+    // ONLINE: setiap soal baru selalu dimulai sebagai fase QUESTION.
+    // Tanpa ini, setelah fase SYNCING host membuat soal dan timer lokal
+    // berjalan, tetapi state Firebase tetap SYNCING sehingga Guest tidak
+    // pernah menampilkan soal dan tombol OK di Host tidak aktif.
+    if(GS.online && GS.onlineRole==='host'){
+        GS.phase = 'question';
+    }
     
     // Bersihkan timer lama
     if(GS.qTimer){
@@ -3746,6 +3754,7 @@ async function processOnlineAction(action){
                 await publishOnlineState({phase:'syncing'});
                 await new Promise(r=>setTimeout(r,260));
                 if(!GS.gameOver){
+                    GS.phase='question';
                     generateQuestion();
                     await publishOnlineState();
                 }
