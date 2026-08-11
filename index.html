@@ -3238,12 +3238,12 @@ function generateQuestion(){
     document.getElementById('question-text').textContent = GS.currentQuestion.text;
     document.getElementById('answer-display').innerHTML = '<span class="answer-cursor">|</span>';
         if(GS.mode === 'pvp'){
-        const currentPlayer = GS.players[GS.currentTurn];
-        const nextPlayer = GS.players[1 - GS.currentTurn];
-        document.getElementById('race-text').textContent = 
-            `⚡ ${currentPlayer.name} mulai duluan!`;
-        document.getElementById('turn-indicator').textContent = 
-            `⚡ Giliran: ${currentPlayer.name}`;
+        document.getElementById('race-text').textContent = GS.online
+            ? '⚡ REBUTAN SOAL — SIAPA CEPAT DIA DAPAT!'
+            : `⚡ ${GS.players[GS.currentTurn].name} mulai duluan!`;
+        document.getElementById('turn-indicator').textContent = GS.online
+            ? '⚡ Keduanya boleh menjawab!'
+            : `⚡ Giliran: ${GS.players[GS.currentTurn].name}`;
     } else {
         document.getElementById('race-text').textContent = '⚡ JAWAB SEBELUM KOMPUTER!';
         document.getElementById('turn-indicator').textContent = '⚡ Soal Muncul!';
@@ -3504,6 +3504,7 @@ function onlineRoleIndex(){ return GS.onlineRole === 'guest' ? 1 : 0; }
 
 function serializeOnlineState(){
     return {
+        stateSeq: onlineStateSeq,
         phase: GS.phase,
         currentTurn: GS.currentTurn,
         answerer: GS.answerer,
@@ -3521,6 +3522,7 @@ function serializeOnlineState(){
 async function publishOnlineState(extra={}){
     if(!GS.online || GS.onlineRole!=='host' || !rankedRoomRef || !window.firebaseUpdate) return;
     try{
+        onlineStateSeq++;
         await window.firebaseUpdate(rankedRoomRef, { game:{...serializeOnlineState(), ...extra}, lastUpdate:window.firebaseServerTimestamp() });
     }catch(e){ console.error('Publish game state:',e); }
 }
@@ -3539,6 +3541,9 @@ function showOnlineQuestion(q){
 
 function applyOnlineState(st){
     if(!st) return;
+    const incomingSeq=Number(st.stateSeq||0);
+    if(incomingSeq && incomingSeq <= onlineLastAppliedStateSeq) return;
+    if(incomingSeq) onlineLastAppliedStateSeq=incomingSeq;
     GS.onlineApplying=true;
     GS.phase=st.phase || 'question';
     GS.currentTurn=st.currentTurn ?? 0;
@@ -3590,6 +3595,9 @@ function applyOnlineState(st){
         const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent=GS.answerer===onlineRoleIndex()?'⚔️ Giliran Anda — pilih bidak!':`⚔️ ${who} sedang bergerak`;
     } else {
         hideQ(); hidePSMsg();
+        if(GS.phase==='syncing'){
+            const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent='⚡ Menyinkronkan langkah…';
+        }
     }
     GS.onlineApplying=false;
 }
@@ -3599,16 +3607,46 @@ function submitOnlineAnswer(value){
     const role=onlineRoleIndex();
     if(GS.phase!=='question' || !GS.currentQuestion) return;
     const action={type:'answer',player:role,value:String(value),clientId:rankedClientId,actionId:Date.now()+'_'+Math.random().toString(36).slice(2)};
-    window.firebasePush(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`),action).catch(e=>alert('❌ Gagal mengirim jawaban: '+e.message));
-    hideQ();
+    window.firebasePush(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`),action)
+      .then(()=>{
+          hideQ();
+          const ti=document.getElementById('turn-indicator');
+          if(ti) ti.textContent='⚡ Jawaban dikirim…';
+      })
+      .catch(e=>alert('❌ Gagal mengirim jawaban: '+e.message));
 }
 
 function submitOnlineMove(tr,tc){
     if(!GS.online || GS.onlineRole===null || !rankedRoomRef || !GS.selectedPiece) return;
     const role=onlineRoleIndex();
     if(GS.phase!=='move' || GS.answerer!==role) return;
-    const action={type:'move',player:role,pieceId:GS.selectedPiece.id,toRow:tr,toCol:tc,clientId:rankedClientId,actionId:Date.now()+'_'+Math.random().toString(36).slice(2)};
-    window.firebasePush(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`),action).catch(e=>alert('❌ Gagal mengirim langkah: '+e.message));
+
+    const piece=GS.selectedPiece;
+    const valid=getValidMoves(piece).some(m=>m.row===tr && m.col===tc);
+    if(!valid) return;
+
+    const actionId=Date.now()+'_'+Math.random().toString(36).slice(2);
+    const action={type:'move',player:role,pieceId:piece.id,toRow:tr,toCol:tc,clientId:rankedClientId,actionId};
+
+    // OPTIMISTIC MOVE: tampilkan perpindahan langsung di perangkat yang mengklik.
+    // Host tetap menjadi wasit dan akan mengirim state resmi sesudahnya.
+    onlinePendingMoveActionId = actionId;
+    GS.onlineApplying=true;
+    onlineFastTransition=true;
+    localTryMove(tr,tc);
+    onlineFastTransition=false;
+    GS.onlineApplying=false;
+    if(GS.gameOver) return;
+    GS.phase='syncing';
+    const ti=document.getElementById('turn-indicator');
+    if(ti) ti.textContent='⚡ Langkah dikirim…';
+    hidePSMsg();
+
+    window.firebasePush(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`),action)
+      .catch(e=>{
+        onlinePendingMoveActionId=null;
+        alert('❌ Gagal mengirim langkah: '+e.message);
+      });
 }
 
 function tryMove(tr,tc){
@@ -3673,20 +3711,28 @@ async function processOnlineAction(action){
                 await publishOnlineState();
             }
         } else if(action.type==='move'){
-            if(GS.phase!=='move' || GS.answerer!==action.player) return;
+            const isHostOwnOptimistic = action.clientId===rankedClientId && onlinePendingMoveActionId===action.actionId;
+            if(!isHostOwnOptimistic && (GS.phase!=='move' || GS.answerer!==action.player)) return;
             const p=GS.pieces[action.pieceId];
             if(!p || p.captured || p.player!==action.player) return;
-            GS.selectedPiece=p;
-            onlineFastTransition=true;
-            GS.onlineApplying=true;
-            localTryMove(action.toRow,action.toCol);
-            GS.onlineApplying=false;
-            onlineFastTransition=false;
+
+            if(!isHostOwnOptimistic){
+                // Guest: host menerima langkah dan menerapkannya sekali di state otoritatif.
+                GS.selectedPiece=p;
+                onlineFastTransition=true;
+                GS.onlineApplying=true;
+                localTryMove(action.toRow,action.toCol);
+                GS.onlineApplying=false;
+                onlineFastTransition=false;
+            }
+            onlinePendingMoveActionId=null;
+
             if(GS.gameOver){
                 await publishOnlineState({phase:'gameover'});
             }else{
-                // Buat soal baru SEGERA setelah langkah sah, tanpa delay 800 ms.
-                generateQuestion();
+                // Beri frame singkat agar perpindahan bidak terlihat sebelum soal baru.
+                await new Promise(r=>setTimeout(r,180));
+                if(!GS.gameOver) generateQuestion();
                 await publishOnlineState();
             }
         }
@@ -3698,6 +3744,9 @@ let onlineAnswerAttempts = new Set();
 let onlineQuestionToken = '';
 let onlineFastTransition = false;
 let onlineLastPiecesKey = '';
+let onlineStateSeq = 0;
+let onlineLastAppliedStateSeq = 0;
+let onlinePendingMoveActionId = null;
 function initOnlineGameFromRoom(room){
     if(!room?.host || !room?.guest || onlineInitInProgress) return;
     const isHost = room.host.id===rankedClientId;
