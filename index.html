@@ -1902,6 +1902,13 @@
 }
 </style>
 
+
+<style id="soul-safe-ui">
+#ability-panel { top:72px !important; bottom:auto !important; left:auto !important; right:10px !important; transform:none !important; gap:3px !important; z-index:32 !important; }
+#soul-counter { min-width:0 !important; max-width:78px !important; padding:4px 7px !important; border-width:1px !important; border-radius:8px !important; font-size:.52rem !important; line-height:1 !important; letter-spacing:.4px !important; box-shadow:0 2px 8px rgba(0,0,0,.35) !important; white-space:nowrap !important; }
+@media (max-width:768px) and (pointer:coarse){ #ability-panel{top:66px !important;right:6px !important;} #soul-counter{max-width:62px !important;padding:3px 5px !important;font-size:.43rem !important;} }
+@media (max-height:500px) and (pointer:coarse){ #ability-panel{top:52px !important;right:5px !important;} #soul-counter{max-width:58px !important;padding:2px 4px !important;font-size:.38rem !important;} }
+</style>
 </head>
 <body>
 
@@ -2242,19 +2249,19 @@ const COMMANDERS = [
     // === PREMIUM TERKUNCI (Butuh Poin) === 
     // ⚠️ Anda HARUS menyediakan file: archmage.png, paladin.png, shadow_assassin.png
     { id:'archmage', name:'Archmage', emoji:'🔮', hp:85, 
-      power:'🛡️ Arcane Shield', desc:'Damage salah hanya 50%', image:'archmage.png', locked:true, unlockCost:500 },
+      power:'🛡️ Arcane Shield', desc:'Damage salah hanya 50%', image:'archmage.png', locked:true, unlockCost:10000 },
     { id:'paladin', name:'Paladin', emoji:'⚔️', hp:130, 
-      power:'✝️ Divine Guard', desc:'1x/game tolak damage', image:'paladin.png', locked:true, unlockCost:900 },
+      power:'✝️ Divine Guard', desc:'1x/game tolak damage', image:'paladin.png', locked:true, unlockCost:3000 },
     { id:'shadow_assassin', name:'Shadow Blade', emoji:'🗡️', hp:70, 
-      power:'🩸 Life Steal', desc:'+4 HP setiap benar', image:'shadow_assassin.png', locked:true, unlockCost:650 },
+      power:'🩸 Life Steal', desc:'+4 HP setiap benar', image:'shadow_assassin.png', locked:true, unlockCost:5000 },
        // === KARAKTER PREMIUM BARU (LEGENDARY) ===
     { id:'chronomancer', name:'Chronomancer', emoji:'⏰', hp:95, 
-      power:'⏰ Time Rewind', desc:'1x/game UNDO langkah lawan', image:'chronomancer.png', locked:true, unlockCost:1200 },
+      power:'⏰ Time Rewind', desc:'1x/game UNDO langkah lawan', image:'chronomancer.png', locked:true, unlockCost:7500 },
     { id:'necromancer', name:'Necromancer', emoji:'💀', hp:75, 
-      power:'💀 Soul Resurrect', desc:'3x benar → bidak hidup lagi!', image:'necromancer.png', locked:true, unlockCost:1500 },
+      power:'💀 Soul Resurrect', desc:'3x benar → bidak hidup lagi!', image:'necromancer.png', locked:true, unlockCost:10000 },
 ];
 
-let PLAYER_POINTS = 0; // Poin pemain disimpan di memori (nanti bisa localStorage)
+let PLAYER_POINTS = 0; // 💎 Poin pemain / diamond disimpan di localStorage
 
 const BOARD_SIZE = 8;
 const TILE_SIZE = 2.2;
@@ -2365,6 +2372,26 @@ function startSetup(mode){
     renderCmd('p2-commanders', 1);
 }
 
+function getUnlockedCommanders(){
+    try { return JSON.parse(localStorage.getItem('mc_unlocked_commanders') || '[]'); }
+    catch(e){ return []; }
+}
+function isCommanderUnlocked(cmd){
+    return cmd.locked !== true || getUnlockedCommanders().includes(cmd.id);
+}
+function unlockCommander(cmdId){
+    const cmd = COMMANDERS.find(c => c.id === cmdId);
+    if(!cmd || cmd.locked !== true || isCommanderUnlocked(cmd)) return true;
+    const pts = getPoints();
+    if(pts < cmd.unlockCost) return false;
+    PLAYER_POINTS = pts - cmd.unlockCost;
+    savePoints();
+    const unlocked = getUnlockedCommanders();
+    if(!unlocked.includes(cmd.id)) unlocked.push(cmd.id);
+    localStorage.setItem('mc_unlocked_commanders', JSON.stringify(unlocked));
+    return true;
+}
+
 function renderCmd(cid, pi){
     const pts = getPoints();
     const el = document.getElementById(cid);
@@ -2372,7 +2399,7 @@ function renderCmd(cid, pi){
     COMMANDERS.forEach((cmd, i) => {
         const d = document.createElement('div');
         // Cek apakah terkunci dan belum cukup poin
-        const isLocked = cmd.locked === true && pts < cmd.unlockCost;
+        const isLocked = cmd.locked === true && !isCommanderUnlocked(cmd);
         
         d.className = 'commander-card' + (selCmd[pi]===i ? ' selected' : '') + (isLocked ? ' locked-card' : '');
         
@@ -2404,8 +2431,19 @@ if(cmd.image){
         `;
         
         d.onclick = () => {
-            if(isLocked){
-                alert('Commander ini terkunci!\nButuh ' + cmd.unlockCost + ' poin untuk membuka.\nSaat ini Anda punya: ' + pts + ' poin.');
+            if(cmd.locked === true && !isCommanderUnlocked(cmd)){
+                const currentPts = getPoints();
+                if(currentPts < cmd.unlockCost){
+                    alert('🔒 ' + cmd.name + ' masih terkunci.\nButuh 💎 ' + cmd.unlockCost.toLocaleString('id-ID') + ' poin.\nPoin Anda: 💎 ' + currentPts.toLocaleString('id-ID'));
+                    return;
+                }
+                const ok = confirm('🔓 Buka ' + cmd.name + '?\n\nBiaya: 💎 ' + cmd.unlockCost.toLocaleString('id-ID') + ' poin\nPoin setelah membuka: 💎 ' + (currentPts-cmd.unlockCost).toLocaleString('id-ID'));
+                if(!ok) return;
+                if(unlockCommander(cmd.id)){
+                    selCmd[pi] = i;
+                    updatePointsDisplay();
+                    renderCmd(cid, pi);
+                }
             } else {
                 selCmd[pi] = i;
                 renderCmd(cid, pi);
@@ -2542,8 +2580,9 @@ function initThreeJS(){
     camera.fov = camFov;
     camera.updateProjectionMatrix();
 
-    camera.position.set(0, camY, camZ);
-    camera.lookAt(0, isMobile ? -1.15 : -0.5, 0);
+    const viewFromGuest = GS.online && GS.onlineRole === 'guest';
+    camera.position.set(0, camY, viewFromGuest ? -camZ : camZ);
+    camera.lookAt(0, viewFromGuest ? (isMobile ? 1.15 : 0.5) : (isMobile ? -1.15 : -0.5), 0);
 
     renderer=new THREE.WebGLRenderer({canvas, antialias:true});
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -4073,6 +4112,12 @@ function resetSoulStreak(playerIdx){
 }
 function updateAbilityButtons(){
     const panel = document.getElementById('ability-panel');
+    if(GS.gameOver){
+        if(panel){ panel.classList.remove('active'); panel.style.display='none'; }
+        const sc=document.getElementById('soul-counter'); if(sc) sc.style.display='none';
+        const rb=document.getElementById('btn-rewind'); if(rb) rb.style.display='none';
+        return;
+    }
     const btnRewind = document.getElementById('btn-rewind');
     const soulCounter = document.getElementById('soul-counter');
     const soulCount = document.getElementById('soul-count');
@@ -4349,7 +4394,7 @@ function renderRankedCommanders(){
     el.innerHTML = '';
     COMMANDERS.forEach((cmd, i) => {
         const d = document.createElement('div');
-        const isLocked = cmd.locked === true && pts < cmd.unlockCost;
+        const isLocked = cmd.locked === true && !isCommanderUnlocked(cmd);
         d.className = 'commander-card' + (rankedSelCmd === i ? ' selected' : '') + (isLocked ? ' locked-card' : '');
         
         // Gambar atau Emoji
@@ -4379,8 +4424,19 @@ if(cmd.image){
         `;
         
         d.onclick = () => {
-            if(isLocked){
-                alert('Commander terkunci! Butuh ' + cmd.unlockCost + ' poin.');
+            if(cmd.locked === true && !isCommanderUnlocked(cmd)){
+                const currentPts = getPoints();
+                if(currentPts < cmd.unlockCost){
+                    alert('🔒 ' + cmd.name + ' masih terkunci.\nButuh 💎 ' + cmd.unlockCost.toLocaleString('id-ID') + ' poin.\nPoin Anda: 💎 ' + currentPts.toLocaleString('id-ID'));
+                    return;
+                }
+                const ok = confirm('🔓 Buka ' + cmd.name + '?\n\nBiaya: 💎 ' + cmd.unlockCost.toLocaleString('id-ID') + ' poin\nPoin setelah membuka: 💎 ' + (currentPts-cmd.unlockCost).toLocaleString('id-ID'));
+                if(!ok) return;
+                if(unlockCommander(cmd.id)){
+                    rankedSelCmd = i;
+                    updatePointsDisplay();
+                    renderRankedCommanders();
+                }
             } else {
                 rankedSelCmd = i;
                 renderRankedCommanders();
@@ -4695,23 +4751,7 @@ function addPoints(amount){
     savePoints();
 }
 
-function canSelectCommander(cmd){
-    if(cmd.locked && !cmd.locked) return false; // sudah terbuka
-    if(cmd.locked && PLAYER_POINTS >= cmd.unlockCost) return true; // bisa buka
-    if(cmd.locked && PLAYER_POINTS < cmd.unlockCost) return false;
-    return true;
-}
-
-function unlockCommander(cmdId){
-    const cmd = COMMANDERS.find(c => c.id === cmdId);
-    if(cmd && cmd.locked && PLAYER_POINTS >= cmd.unlockCost){
-        PLAYER_POINTS -= cmd.unlockCost;
-        cmd.locked = false;
-        savePoints();
-        return true;
-    }
-    return false;
-}
+function canSelectCommander(cmd){ return isCommanderUnlocked(cmd); }
 function exitGame(){
     if(confirm('Yakin ingin keluar dari Math Magic Chess?')){
         // Untuk PWA/browser
