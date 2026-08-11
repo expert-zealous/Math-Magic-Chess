@@ -3738,8 +3738,9 @@ function submitOnlineAnswer(value){
     if(!GS.online || GS.onlineRole===null || !rankedRoomRef) return;
     const role=onlineRoleIndex();
     if(GS.phase!=='question' || !GS.currentQuestion) return;
-    const action={type:'answer',player:role,value:String(value),clientId:rankedClientId,actionId:Date.now()+'_'+Math.random().toString(36).slice(2)};
-    window.firebasePush(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`),action)
+    const action={type:'answer',player:role,value:String(value),clientId:window.firebaseAuthUid||rankedClientId,actionId:Date.now()+'_'+Math.random().toString(36).slice(2)};
+    const actionRef=window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions/${action.actionId}`);
+    window.firebaseSet(actionRef,action)
       .then(()=>{
           hideQ();
           const ti=document.getElementById('turn-indicator');
@@ -3758,7 +3759,7 @@ async function submitOnlineMove(tr,tc){
     if(!valid) return;
 
     const actionId=Date.now()+'_'+Math.random().toString(36).slice(2);
-    const action={type:'move',player:role,pieceId:piece.id,toRow:tr,toCol:tc,clientId:rankedClientId,actionId};
+    const action={type:'move',player:role,pieceId:piece.id,toRow:tr,toCol:tc,clientId:window.firebaseAuthUid||rankedClientId,actionId};
 
     // OPTIMISTIC MOVE: tampilkan perpindahan langsung di perangkat yang mengklik.
     // Host tetap menjadi wasit dan akan mengirim state resmi sesudahnya.
@@ -3786,7 +3787,7 @@ async function submitOnlineMove(tr,tc){
         hidePSMsg();
     }
 
-    window.firebasePush(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`),action)
+    window.firebaseSet(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions/${action.actionId}`),action)
       .catch(e=>{
         onlinePendingMoveActionId=null;
         alert('❌ Gagal mengirim langkah: '+e.message);
