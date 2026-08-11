@@ -1692,6 +1692,47 @@
 }
 
 </style>
+<style>
+/* MOBILE: Necromancer Soul counter dibuat kecil agar tidak menutupi raja/ratu di papan. */
+@media (max-width: 768px) and (pointer: coarse) {
+  #ability-panel {
+    bottom: 3px !important;
+    gap: 4px !important;
+    z-index: 35 !important;
+    pointer-events: none;
+  }
+  #ability-panel .ability-btn {
+    pointer-events: auto;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: 88px !important;
+    min-height: 25px !important;
+    padding: 3px 7px !important;
+    border-width: 1px !important;
+    border-radius: 8px !important;
+    font-size: .52rem !important;
+    line-height: 1.05 !important;
+    letter-spacing: .6px !important;
+    box-shadow: 0 2px 7px rgba(0,0,0,.45) !important;
+  }
+  #ability-panel .ability-info {
+    font-size: .36rem !important;
+    margin-top: 1px !important;
+    letter-spacing: .4px !important;
+  }
+  #soul-counter { white-space: nowrap; }
+}
+@media (max-height: 430px) and (pointer: coarse) {
+  #ability-panel { bottom: 1px !important; }
+  #ability-panel .ability-btn {
+    max-width: 76px !important;
+    min-height: 22px !important;
+    padding: 2px 5px !important;
+    font-size: .46rem !important;
+  }
+  #ability-panel .ability-info { font-size: .32rem !important; }
+}
+</style>
     <!-- FIREBASE SDK -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -3586,21 +3627,40 @@ async function processOnlineAction(action){
     }catch(e){ console.error('Process online action:',e); GS.onlineApplying=false; }
 }
 
-async function initOnlineGameFromRoom(room){
-    if(!room?.host || !room?.guest) return;
+let onlineInitInProgress = false;
+function initOnlineGameFromRoom(room){
+    if(!room?.host || !room?.guest || onlineInitInProgress) return;
     const isHost = room.host.id===rankedClientId;
-    GS.online=true; GS.onlineRole=isHost?'host':'guest'; GS.onlineRoomCode=rankedRoomCode;
+    onlineInitInProgress = true;
+    GS.online=true;
+    GS.onlineRole=isHost?'host':'guest';
+    GS.onlineRoomCode=rankedRoomCode;
     GS.mode='pvp';
     selCmd[0]=room.host.commanderIndex ?? 0;
     selCmd[1]=room.guest.commanderIndex ?? 0;
     const p1=document.getElementById('p1-name'), p2=document.getElementById('p2-name');
     if(p1) p1.value=room.host.name||'Host';
     if(p2) p2.value=room.guest.name||'Guest';
-    // Host selalu player 0, Guest player 1.
+
+    // startGame membangun papan lokal yang identik di kedua perangkat.
     startGame();
-    if(GS.onlineRole==='host'){
-        setTimeout(()=>{ window.firebaseUpdate(rankedRoomRef,{status:'playing',lastUpdate:window.firebaseServerTimestamp()}); publishOnlineState({phase:'question'}); },700);
-    }
+
+    // Setelah role sudah ditetapkan, pasang listener ONLINE.
+    // Versi sebelumnya memasang listener sebelum GS.onlineRole diisi,
+    // sehingga Host tidak pernah menerima action jawaban/langkah dari Guest.
+    setTimeout(()=>{
+        onlineInitInProgress = false;
+        watchOnlineRoom();
+        if(GS.onlineRole==='host'){
+            // Tunggu renderer/papan siap sebelum mengirim state awal.
+            setTimeout(async()=>{
+                try{
+                    await window.firebaseUpdate(rankedRoomRef,{status:'playing',lastUpdate:window.firebaseServerTimestamp()});
+                    publishOnlineState({phase:'question'});
+                }catch(e){ console.error('Publish initial online state:',e); }
+            },900);
+        }
+    },180);
 }
 
 function watchOnlineRoom(){
@@ -3610,14 +3670,18 @@ function watchOnlineRoom(){
         const room=snap.val(); if(!room) return;
         if(room.status==='starting' || room.status==='playing'){
             if(!GS.online) initOnlineGameFromRoom(room);
-            if(room.game && GS.onlineRole==='guest') applyOnlineState(room.game);
+            if(room.game && GS.onlineRole==='guest') {
+                applyOnlineState(room.game);
+                setTimeout(()=>{ if(GS.online && GS.onlineRole==='guest' && room.game) applyOnlineState(room.game); },500);
+            }
             if(room.game && GS.onlineRole==='host' && room.game.phase==='gameover') applyOnlineState(room.game);
         }
     });
     if(GS.onlineRole==='host'){
         const actionsRef=window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`);
+        if(window.onlineActionsUnsub) window.onlineActionsUnsub();
         let processed={};
-        window.firebaseOnValue(actionsRef,snap=>{
+        window.onlineActionsUnsub=window.firebaseOnValue(actionsRef,snap=>{
             const all=snap.val()||{};
             Object.values(all).sort((a,b)=>(a?.actionId||'').localeCompare(b?.actionId||'')).forEach(a=>{
                 if(!a?.actionId || processed[a.actionId]) return;
