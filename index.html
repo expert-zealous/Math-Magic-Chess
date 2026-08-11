@@ -2240,6 +2240,10 @@ let GS = {
     chronoUsed: [false, false], // Sudah pakai rewind? [p1, p2]
     soulStreak: [0, 0],    // Counter benar berturut-turut Necromancer
     capturedPieces: [],    // List bidak yang tewas (untuk resurrect)
+    online: false,
+    onlineRole: null,
+    onlineRoomCode: null,
+    onlineApplying: false,
 };
 
 // ========================================
@@ -2434,7 +2438,7 @@ function startGame(){
         try {
             initThreeJS();
             setTimeout(() => {
-                if(!GS.gameOver) {
+                if(!GS.gameOver && GS.onlineRole !== 'guest') {
                     generateQuestion();
                 }
             }, 500);
@@ -3059,7 +3063,7 @@ function canCastle(king, dc){
 
 function inB(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
 
-function tryMove(tr, tc){
+function localTryMove(tr, tc){
     if(!GS.selectedPiece) return;
     const vm = getValidMoves(GS.selectedPiece);
     const mi = vm.find(m => m.row===tr && m.col===tc);
@@ -3227,9 +3231,9 @@ function generateQuestion(){
             hideQ();
             showResult('⏰','#ff8800');
             
-            if(GS.players[0].hp <= 0){ endGame(1); return; }
-            if(GS.players[1].hp <= 0){ endGame(0); return; }
-            
+            if(GS.players[0].hp <= 0){ endGame(1); if(GS.online && GS.onlineRole==='host') publishOnlineState({phase:'gameover'}); return; }
+            if(GS.players[1].hp <= 0){ endGame(0); if(GS.online && GS.onlineRole==='host') publishOnlineState({phase:'gameover'}); return; }
+            if(GS.online && GS.onlineRole==='host') publishOnlineState();
             setTimeout(() => {
                 if(!GS.gameOver) generateQuestion();
             }, 1500);
@@ -3241,6 +3245,10 @@ function generateQuestion(){
             if(Math.random() < 0.018) aiAnswer();
         }
     }, 100);
+
+    if(GS.online && GS.onlineRole==='host' && !GS.onlineApplying){
+        publishOnlineState();
+    }
 }
 
 function rnd(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
@@ -3333,7 +3341,7 @@ function numpadDelete(){
     GS.currentAnswer=GS.currentAnswer.slice(0,-1);
     updateAD();
 }
-function numpadOK(){
+function localNumpadOK(){
     if(!GS.currentAnswer) return;
     clearInterval(GS.qTimer);
     const ua = parseInt(GS.currentAnswer);
@@ -3428,6 +3436,195 @@ function numpadOK(){
                 } 
             }, 1500);
         }
+    }
+}
+
+// ========================================
+// ONLINE MATCH - 2B / 2C / 2D / 2E
+// ========================================
+function onlineRoleIndex(){ return GS.onlineRole === 'guest' ? 1 : 0; }
+
+function serializeOnlineState(){
+    return {
+        phase: GS.phase,
+        currentTurn: GS.currentTurn,
+        answerer: GS.answerer,
+        moves: GS.moves,
+        gameOver: GS.gameOver,
+        currentQuestion: GS.currentQuestion ? {text:GS.currentQuestion.text, answer:GS.currentQuestion.answer} : null,
+        timerMax: GS.timerMax || 100,
+        timerVal: GS.timerVal || 100,
+        players: GS.players.map(p => ({name:p.name, hp:p.hp, maxHp:p.maxHp, correct:p.correct||0, wrong:p.wrong||0, commanderId:p.commander?.id||null})),
+        pieces: GS.pieces.map(p => ({id:p.id,type:p.type,row:p.row,col:p.col,player:p.player,captured:!!p.captured,hasMoved:!!p.hasMoved}))
+    };
+}
+
+async function publishOnlineState(extra={}){
+    if(!GS.online || GS.onlineRole!=='host' || !rankedRoomRef || !window.firebaseUpdate) return;
+    try{
+        await window.firebaseUpdate(rankedRoomRef, { game:{...serializeOnlineState(), ...extra}, lastUpdate:window.firebaseServerTimestamp() });
+    }catch(e){ console.error('Publish game state:',e); }
+}
+
+function showOnlineQuestion(q){
+    if(!q) return;
+    GS.currentQuestion = {text:q.text, answer:q.answer};
+    GS.currentAnswer='';
+    const qt=document.getElementById('question-text'); if(qt) qt.textContent=q.text;
+    const ad=document.getElementById('answer-display'); if(ad) ad.innerHTML='<span class="answer-cursor">|</span>';
+    const role=onlineRoleIndex();
+    const turnName=GS.players[GS.currentTurn]?.name||'';
+    const race=document.getElementById('race-text'); if(race) race.textContent=`⚡ Giliran: ${turnName}`;
+    const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent = GS.currentTurn===role ? '⚡ Giliran Anda — jawab soal!' : `⚡ Giliran ${turnName}`;
+    const qo=document.getElementById('question-overlay'); if(qo) qo.classList.add('active');
+    hidePSMsg();
+}
+
+function applyOnlineState(st){
+    if(!st) return;
+    GS.onlineApplying=true;
+    GS.phase=st.phase || 'question';
+    GS.currentTurn=st.currentTurn ?? 0;
+    GS.answerer=st.answerer ?? -1;
+    GS.moves=st.moves || 0;
+    GS.gameOver=!!st.gameOver;
+    GS.currentQuestion=st.currentQuestion || null;
+    GS.timerMax=st.timerMax || 100;
+    GS.timerVal=st.timerVal ?? GS.timerMax;
+    if(st.players){
+        st.players.forEach((sp,i)=>{
+            if(!GS.players[i]) return;
+            GS.players[i].name=sp.name;
+            GS.players[i].hp=sp.hp;
+            GS.players[i].maxHp=sp.maxHp;
+            GS.players[i].correct=sp.correct||0;
+            GS.players[i].wrong=sp.wrong||0;
+        });
+    }
+    if(st.pieces){
+        const byId={};
+        GS.pieces.forEach(p=>byId[p.id]=p);
+        GS.board=Array.from({length:8},()=>Array(8).fill(null));
+        st.pieces.forEach(sp=>{
+            let p=byId[sp.id];
+            if(!p){ p={id:sp.id}; GS.pieces.push(p); }
+            Object.assign(p,sp);
+            GS.board[p.row][p.col]=p.captured?null:p;
+        });
+    }
+    GS.selectedPiece=null;
+    clearHL();
+    updateUI();
+    updateAbilityButtons();
+    if(renderer) renderPieces3D();
+    if(GS.phase==='question' && GS.currentQuestion && !GS.gameOver){
+        showOnlineQuestion(GS.currentQuestion);
+    } else if(GS.phase==='move' && !GS.gameOver){
+        hideQ();
+        const who=GS.players[GS.answerer]?.name||'';
+        showPSMsg(GS.answerer===onlineRoleIndex() ? 'Pilih bidak Anda!' : `${who} sedang memilih bidak...`);
+        const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent=GS.answerer===onlineRoleIndex()?'⚔️ Giliran Anda — pilih bidak!':`⚔️ ${who} sedang bergerak`;
+    } else {
+        hideQ(); hidePSMsg();
+    }
+    GS.onlineApplying=false;
+}
+
+function submitOnlineAnswer(value){
+    if(!GS.online || GS.onlineRole===null || !rankedRoomRef) return;
+    const role=onlineRoleIndex();
+    if(GS.phase!=='question' || GS.currentTurn!==role || !GS.currentQuestion) return;
+    const action={type:'answer',player:role,value:String(value),clientId:rankedClientId,actionId:Date.now()+'_'+Math.random().toString(36).slice(2)};
+    window.firebasePush(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`),action).catch(e=>alert('❌ Gagal mengirim jawaban: '+e.message));
+    hideQ();
+}
+
+function submitOnlineMove(tr,tc){
+    if(!GS.online || GS.onlineRole===null || !rankedRoomRef || !GS.selectedPiece) return;
+    const role=onlineRoleIndex();
+    if(GS.phase!=='move' || GS.answerer!==role) return;
+    const action={type:'move',player:role,pieceId:GS.selectedPiece.id,toRow:tr,toCol:tc,clientId:rankedClientId,actionId:Date.now()+'_'+Math.random().toString(36).slice(2)};
+    window.firebasePush(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`),action).catch(e=>alert('❌ Gagal mengirim langkah: '+e.message));
+}
+
+function tryMove(tr,tc){
+    if(GS.online && !GS.onlineApplying){ submitOnlineMove(tr,tc); return; }
+    return localTryMove(tr,tc);
+}
+
+function numpadOK(){
+    if(GS.online && !GS.onlineApplying){
+        if(!GS.currentAnswer) return;
+        submitOnlineAnswer(GS.currentAnswer);
+        return;
+    }
+    return localNumpadOK();
+}
+
+async function processOnlineAction(action){
+    if(!GS.online || GS.onlineRole!=='host' || !action || GS.gameOver) return;
+    try{
+        if(action.type==='answer'){
+            if(GS.phase!=='question' || GS.currentTurn!==action.player) return;
+            GS.currentAnswer=String(action.value);
+            GS.onlineApplying=true;
+            localNumpadOK();
+            GS.onlineApplying=false;
+            if(GS.gameOver) publishOnlineState({phase:'gameover'});
+            else setTimeout(()=>publishOnlineState(),1250);
+        } else if(action.type==='move'){
+            if(GS.phase!=='move' || GS.answerer!==action.player) return;
+            const p=GS.pieces[action.pieceId];
+            if(!p || p.captured || p.player!==action.player) return;
+            GS.selectedPiece=p;
+            GS.onlineApplying=true;
+            localTryMove(action.toRow,action.toCol);
+            GS.onlineApplying=false;
+            if(GS.gameOver) publishOnlineState({phase:'gameover'});
+            else setTimeout(()=>publishOnlineState(),850);
+        }
+    }catch(e){ console.error('Process online action:',e); GS.onlineApplying=false; }
+}
+
+async function initOnlineGameFromRoom(room){
+    if(!room?.host || !room?.guest) return;
+    const isHost = room.host.id===rankedClientId;
+    GS.online=true; GS.onlineRole=isHost?'host':'guest'; GS.onlineRoomCode=rankedRoomCode;
+    GS.mode='pvp';
+    selCmd[0]=room.host.commanderIndex ?? 0;
+    selCmd[1]=room.guest.commanderIndex ?? 0;
+    const p1=document.getElementById('p1-name'), p2=document.getElementById('p2-name');
+    if(p1) p1.value=room.host.name||'Host';
+    if(p2) p2.value=room.guest.name||'Guest';
+    // Host selalu player 0, Guest player 1.
+    startGame();
+    if(GS.onlineRole==='host'){
+        setTimeout(()=>{ window.firebaseUpdate(rankedRoomRef,{status:'playing',lastUpdate:window.firebaseServerTimestamp()}); publishOnlineState({phase:'question'}); },700);
+    }
+}
+
+function watchOnlineRoom(){
+    if(!rankedRoomRef || !window.firebaseOnValue) return;
+    if(rankedRoomUnsub) rankedRoomUnsub();
+    rankedRoomUnsub=window.firebaseOnValue(rankedRoomRef, snap=>{
+        const room=snap.val(); if(!room) return;
+        if(room.status==='starting' || room.status==='playing'){
+            if(!GS.online) initOnlineGameFromRoom(room);
+            if(room.game && GS.onlineRole==='guest') applyOnlineState(room.game);
+            if(room.game && GS.onlineRole==='host' && room.game.phase==='gameover') applyOnlineState(room.game);
+        }
+    });
+    if(GS.onlineRole==='host'){
+        const actionsRef=window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions`);
+        let processed={};
+        window.firebaseOnValue(actionsRef,snap=>{
+            const all=snap.val()||{};
+            Object.values(all).sort((a,b)=>(a?.actionId||'').localeCompare(b?.actionId||'')).forEach(a=>{
+                if(!a?.actionId || processed[a.actionId]) return;
+                processed[a.actionId]=true;
+                processOnlineAction(a);
+            });
+        });
     }
 }
 
@@ -3780,7 +3977,8 @@ async function createRoom(){
         }
         if(room.status==='starting' || room.status==='playing'){
             document.getElementById('waiting-title').textContent='🎮 PERTANDINGAN DIMULAI';
-            document.getElementById('waiting-info').textContent='Room siap. Sinkronisasi permainan akan digunakan pada tahap berikutnya.';
+            document.getElementById('waiting-info').textContent='Menyiapkan papan catur...';
+            watchOnlineRoom();
         }
     });
     } catch(e) {
@@ -3813,7 +4011,8 @@ async function joinRoom(){
         const r=s.val();
         if(r?.status==='starting' || r?.status==='playing'){
             document.getElementById('waiting-title').textContent='🎮 PERTANDINGAN DIMULAI';
-            document.getElementById('waiting-info').textContent='Room siap. Sinkronisasi permainan akan digunakan pada tahap berikutnya.';
+            document.getElementById('waiting-info').textContent='Menyiapkan papan catur...';
+            watchOnlineRoom();
         }
     });
     } catch(e) {
@@ -3830,8 +4029,13 @@ async function rankedReady(){
         if(!room?.host || !room?.guest){ alert('⏳ Masih menunggu kedua pemain.'); return; }
         await window.firebaseUpdate(rankedRoomRef,{status:'starting',lastUpdate:window.firebaseServerTimestamp()});
         document.getElementById('ranked-ready-btn').style.display='none';
-        document.getElementById('waiting-title').textContent='🚀 ROOM SIAP';
-        document.getElementById('waiting-info').textContent='Kedua pemain terhubung. Tahap berikutnya akan menghubungkan state permainan real-time.';
+        document.getElementById('waiting-title').textContent='🚀 MEMULAI PERTANDINGAN...';
+        document.getElementById('waiting-info').textContent='Menyiapkan papan catur online...';
+        // Kedua perangkat akan menerima status starting dan masuk ke papan yang sama.
+        watchOnlineRoom();
+        setTimeout(()=>{ if(!GS.online) {
+            window.firebaseGet(rankedRoomRef).then(s=>{ const r=s.val(); if(r) initOnlineGameFromRoom(r); });
+        }},300);
     }catch(e){ console.error(e); alert('❌ Gagal memulai room: '+e.message); }
 }
 
