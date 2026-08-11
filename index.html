@@ -2573,7 +2573,7 @@ function startGame(){
         try {
             initThreeJS();
             setTimeout(() => {
-                if(!GS.gameOver && GS.onlineRole !== 'guest') {
+                if(!GS.gameOver && !GS.online) {
                     generateQuestion();
                 }
             }, 500);
@@ -3897,8 +3897,9 @@ let onlineLastAppliedStateSeq = 0;
 let onlinePendingMoveActionId = null;
 function initOnlineGameFromRoom(room){
     if(!room?.host || !room?.guest || onlineInitInProgress) return;
-    const myId = rankedClientId || window.firebaseAuthUid;
-    const isHost = room.host.id===myId;
+    const myId = window.firebaseAuthUid || rankedClientId;
+    const isHost = String(room.host.id) === String(myId);
+    console.log('ONLINE ROLE:', {myId, hostId:room.host.id, guestId:room.guest.id, isHost});
     onlineInitInProgress = true;
     GS.online=true;
     GS.onlineRole=isHost?'host':'guest';
@@ -4327,9 +4328,21 @@ async function scheduleRoomCleanup(){
         }catch(e){}
     },95000);
 }
+async function waitForFirebaseAuth(timeoutMs=8000){
+    if(window.firebaseAuthUid) return window.firebaseAuthUid;
+    return await new Promise(resolve=>{
+        let done=false;
+        const finish=uid=>{ if(done)return; done=true; window.removeEventListener('firebaseAuthReady',onReady); clearTimeout(t); resolve(uid||null); };
+        const onReady=e=>finish(e?.detail?.uid || window.firebaseAuthUid);
+        const t=setTimeout(()=>finish(window.firebaseAuthUid),timeoutMs);
+        window.addEventListener('firebaseAuthReady',onReady);
+    });
+}
+
 async function createRoom(){
     try {
     if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
+    await waitForFirebaseAuth();
     const player=rankedPlayerData();
     if(!player.name){ alert('⚠️ Isi nama pemain dulu!'); return; }
     stopRankedListeners();
@@ -4378,6 +4391,7 @@ async function createRoom(){
 async function joinRoom(){
     try {
     if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
+    await waitForFirebaseAuth();
     const name=document.getElementById('ranked-player-name').value.trim();
     const code=document.getElementById('room-code-input').value.trim().toUpperCase();
     if(!name){ alert('⚠️ Isi nama pemain dulu!'); return; }
@@ -4412,6 +4426,7 @@ async function joinRoom(){
 
 async function rankedReady(){
     if(!rankedRoomRef) return;
+    await waitForFirebaseAuth();
     try{
         const snap=await window.firebaseGet(rankedRoomRef);
         const room=snap.val();
@@ -4432,6 +4447,7 @@ async function rankedReady(){
 async function startMatchmaking(){
     try {
     if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
+    await waitForFirebaseAuth();
     const player=rankedPlayerData();
     if(!player.name){ alert('⚠️ Isi nama pemain dulu!'); return; }
     stopRankedListeners();
