@@ -3897,7 +3897,8 @@ let onlineLastAppliedStateSeq = 0;
 let onlinePendingMoveActionId = null;
 function initOnlineGameFromRoom(room){
     if(!room?.host || !room?.guest || onlineInitInProgress) return;
-    const isHost = room.host.id===rankedClientId;
+    const myId = rankedClientId || window.firebaseAuthUid;
+    const isHost = room.host.id===myId;
     onlineInitInProgress = true;
     GS.online=true;
     GS.onlineRole=isHost?'host':'guest';
@@ -3915,17 +3916,17 @@ function initOnlineGameFromRoom(room){
     // Setelah role sudah ditetapkan, pasang listener ONLINE.
     // Versi sebelumnya memasang listener sebelum GS.onlineRole diisi,
     // sehingga Host tidak pernah menerima action jawaban/langkah dari Guest.
-    setTimeout(()=>{
+    setTimeout(async()=>{
         onlineInitInProgress = false;
         watchOnlineRoom();
         if(GS.onlineRole==='host'){
-            // Kirim state awal segera setelah papan lokal dibuat.
-            setTimeout(async()=>{
-                try{
-                    await window.firebaseUpdate(rankedRoomRef,{status:'playing',lastUpdate:window.firebaseServerTimestamp()});
-                    await publishOnlineState({phase:'question'});
-                }catch(e){ console.error('Publish initial online state:',e); }
-            },120);
+            // Host membuat soal pertama terlebih dahulu, baru mengirim state.
+            // Jangan kirim phase=question dengan currentQuestion=null.
+            try{
+                if(!GS.currentQuestion) generateQuestion();
+                await window.firebaseUpdate(rankedRoomRef,{status:'playing',lastUpdate:window.firebaseServerTimestamp()});
+                await publishOnlineState({phase:'question'});
+            }catch(e){ console.error('Publish initial online state:',e); }
         }
     },180);
 }
@@ -5026,8 +5027,12 @@ if('serviceWorker' in navigator){
 </script>
 window.addEventListener('firebaseAuthReady', ()=>{
     if(window.firebaseAuthUid){
-        rankedClientId=window.firebaseAuthUid;
-        localStorage.setItem('mmc_client_id',rankedClientId);
+        // Jangan mengganti ID setelah room aktif. Role Host/Guest harus tetap
+        // sama dengan ID yang tersimpan saat room dibuat/join.
+        if(!rankedRoomRef && !GS.online){
+            rankedClientId=window.firebaseAuthUid;
+            localStorage.setItem('mmc_client_id',rankedClientId);
+        }
         updateMMCProfileUI();
     }
 });
