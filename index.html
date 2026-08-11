@@ -2966,6 +2966,7 @@ function renderPieces3D(){
 // ========================================
 function onBoardClick(event){
     if(GS.phase!=='move' || GS.gameOver) return;
+    if(event && event.cancelable) event.preventDefault();
     if(GS.mode==='ai' && GS.answerer===1) return;
 
     const canvas=document.getElementById('game-canvas');
@@ -3546,6 +3547,8 @@ function applyOnlineState(st){
     if(incomingSeq) onlineLastAppliedStateSeq=incomingSeq;
     GS.onlineApplying=true;
     GS.phase=st.phase || 'question';
+    // Timer hanya boleh berjalan pada soal aktif. Fase move/syncing wajib menghentikannya.
+    if(GS.phase!=='question' && GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
     GS.currentTurn=st.currentTurn ?? 0;
     GS.answerer=st.answerer ?? -1;
     GS.moves=st.moves || 0;
@@ -3634,6 +3637,8 @@ function submitOnlineMove(tr,tc){
     GS.onlineApplying=true;
     onlineFastTransition=true;
     localTryMove(tr,tc);
+    // Pastikan frame perpindahan langsung dirender di perangkat yang menekan bidak.
+    if(renderer) renderPieces3D();
     onlineFastTransition=false;
     GS.onlineApplying=false;
     if(GS.gameOver) return;
@@ -3669,6 +3674,8 @@ async function processOnlineAction(action){
         if(action.type==='answer'){
             // MODE REBUTAN: kedua pemain boleh menjawab. Host menjadi wasit.
             if(GS.phase!=='question' || !GS.currentQuestion) return;
+            // Hentikan timer soal SEGERA ketika ada jawaban yang diterima.
+            if(GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
             if(onlineAnswerAttempts.has(action.player)) return;
             onlineAnswerAttempts.add(action.player);
             const value=String(action.value);
@@ -3685,6 +3692,7 @@ async function processOnlineAction(action){
                 const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent=`${GS.players[player].name} paling cepat dan BENAR! Pilih bidak.`;
                 GS.phase='move';
                 showPSMsg(`${GS.players[player].name}: Pilih bidak!`);
+                // State MOVE resmi dikirim agar perangkat lawan segera berpindah ke fase memilih bidak.
                 await publishOnlineState();
             }else{
                 GS.players[player].wrong++;
@@ -3730,10 +3738,17 @@ async function processOnlineAction(action){
             if(GS.gameOver){
                 await publishOnlineState({phase:'gameover'});
             }else{
-                // Beri frame singkat agar perpindahan bidak terlihat sebelum soal baru.
-                await new Promise(r=>setTimeout(r,180));
-                if(!GS.gameOver) generateQuestion();
-                await publishOnlineState();
+                // JANGAN langsung membuat soal baru. Kirim dulu posisi bidak terbaru
+                // supaya kedua perangkat sempat menampilkan perpindahan yang sama.
+                if(GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
+                GS.phase='syncing';
+                hideQ(); hidePSMsg();
+                await publishOnlineState({phase:'syncing'});
+                await new Promise(r=>setTimeout(r,260));
+                if(!GS.gameOver){
+                    generateQuestion();
+                    await publishOnlineState();
+                }
             }
         }
     }catch(e){ console.error('Process online action:',e); GS.onlineApplying=false; onlineFastTransition=false; }
