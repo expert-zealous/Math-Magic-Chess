@@ -2572,6 +2572,11 @@ function startGame(){
     GS.phase = 'question'; 
     GS.moves = 0; 
     GS.gameOver = false; 
+    GS.currentQuestion = null;
+    GS.timerVal = 0;
+    GS.timerMax = 100;
+    GS.onlineLastResultToken = '';
+    questionDeadlineAt = 0; 
     GS.victoryShown = false;
     GS.victoryWinnerIndex = -1;
     GS.victoryPoints = 0;
@@ -3338,6 +3343,10 @@ function generateQuestion(){
     }
     
     GS.currentQuestion = {text: `${a} ${op} ${b}`, answer: answer};
+    onlineLastResultToken = '';
+    onlineLastResultSymbol = '';
+    onlineLastResultColor = '';
+    onlineLastResultPlayer = -1;
     if(GS.online && GS.onlineRole==='host'){
         onlineQuestionToken = Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
         onlineAnswerAttempts = new Set();
@@ -3623,6 +3632,11 @@ function serializeOnlineState(){
         timerVal: GS.timerVal || 100,
         questionDeadlineAt: questionDeadlineAt || 0,
         questionToken: onlineQuestionToken || '',
+        answerAttempts: Array.from(onlineAnswerAttempts || []),
+        resultToken: onlineLastResultToken || '',
+        resultSymbol: onlineLastResultSymbol || '',
+        resultColor: onlineLastResultColor || '',
+        resultPlayer: onlineLastResultPlayer,
         players: GS.players.map(p => ({name:p.name, hp:p.hp, maxHp:p.maxHp, correct:p.correct||0, wrong:p.wrong||0, commanderId:p.commander?.id||null})),
         pieces: GS.pieces.map(p => ({id:p.id,type:p.type,row:p.row,col:p.col,player:p.player,captured:!!p.captured,hasMoved:!!p.hasMoved}))
     };
@@ -3678,6 +3692,18 @@ function applyOnlineState(st){
     const questionChanged=incomingQuestionToken !== onlineQuestionToken;
     onlineQuestionToken=incomingQuestionToken;
     if(questionChanged) onlineTimerToken='';
+    onlineAnswerAttempts = new Set(Array.isArray(st.answerAttempts) ? st.answerAttempts : []);
+    if(st.resultToken && st.resultToken !== onlineLastResultToken){
+        onlineLastResultToken=st.resultToken;
+        onlineLastResultSymbol=st.resultSymbol || '';
+        onlineLastResultColor=st.resultColor || '';
+        onlineLastResultPlayer=Number.isInteger(st.resultPlayer) ? st.resultPlayer : -1;
+        // Host already shows its own feedback immediately. Guest must receive
+        // the same visual result from Firebase.
+        if(GS.onlineRole==='guest' && onlineLastResultSymbol){
+            showResult(onlineLastResultSymbol, onlineLastResultColor || '#ffffff');
+        }
+    }
     if(st.players){
         st.players.forEach((sp,i)=>{
             if(!GS.players[i]) return;
@@ -3710,6 +3736,14 @@ function applyOnlineState(st){
     updateUI();
     updateAbilityButtons();
     if(renderer && piecesChanged) renderPieces3D();
+    if(renderer && (piecesChanged || GS.onlineRole==='guest')){
+        requestAnimationFrame(()=>{
+            try{
+                onResize();
+                renderer.render(scene,camera);
+            }catch(e){}
+        });
+    }
     if(GS.phase==='question' && GS.currentQuestion && !GS.gameOver){
         showOnlineQuestion(GS.currentQuestion);
     } else if(GS.phase==='move' && !GS.gameOver){
@@ -3751,6 +3785,11 @@ function submitOnlineAnswer(value){
     if(!GS.online || GS.onlineRole===null || !rankedRoomRef) return;
     const role=onlineRoleIndex();
     if(GS.phase!=='question' || !GS.currentQuestion) return;
+    if(onlineAnswerAttempts && onlineAnswerAttempts.has(role)){
+        const ti=document.getElementById('turn-indicator');
+        if(ti) ti.textContent='⏳ Anda sudah menjawab soal ini. Tunggu lawan.';
+        return;
+    }
     const action={type:'answer',matchId:onlineMatchId,player:role,value:String(value),clientId:window.firebaseAuthUid||rankedClientId,actionId:Date.now()+'_'+Math.random().toString(36).slice(2)};
     const actionRef=window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions/${action.actionId}`);
     window.firebaseSet(actionRef,action)
@@ -3838,6 +3877,10 @@ async function processOnlineAction(action){
             const correct=parseInt(value,10)===Number(GS.currentQuestion.answer);
             const player=action.player, opp=1-player;
             GS.currentAnswer=value;
+            onlineLastResultToken=Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
+            onlineLastResultPlayer=player;
+            onlineLastResultSymbol=correct?'✓':'✕';
+            onlineLastResultColor=correct?'#44ff44':'#ff4444';
             hideQ();
             if(correct){
                 GS.answerer=player;
@@ -3926,6 +3969,10 @@ let onlineStateSeq = 0;
 let onlineLastAppliedStateSeq = 0;
 let onlinePendingMoveActionId = null;
 let onlineMatchId = 1;
+let onlineLastResultToken = '';
+let onlineLastResultSymbol = '';
+let onlineLastResultColor = '';
+let onlineLastResultPlayer = -1;
 let firebaseServerOffset = 0;
 let questionDeadlineAt = 0;
 let onlineRoomLobbyActive = false;
@@ -3937,23 +3984,30 @@ function stopOnlineDisplayTimer(){
     if(onlineDisplayTimer){ clearInterval(onlineDisplayTimer); onlineDisplayTimer=null; }
 }
 function startOnlineDisplayTimer(){
-    if(GS.onlineRole==='host') return; // Host uses the same deadline-authoritative timer.
+    if(GS.onlineRole==='host') return;
     if(GS.phase!=='question' || !GS.currentQuestion || GS.gameOver) return;
+
     const token=onlineQuestionToken || '';
     if(onlineDisplayTimer && onlineTimerToken===token) return;
     stopOnlineDisplayTimer();
     onlineTimerToken=token;
-    const deadline=Number(questionDeadlineAt||0);
+
     const maxMs=Math.max(1000,Number(GS.timerMax||100)*1000);
     const paint=()=>{
-        const remaining=deadline ? Math.max(0,deadline-(Date.now()+firebaseServerOffset)) : Math.max(0,Number(GS.timerVal||GS.timerMax||100))*1000;
+        if(GS.phase!=='question' || GS.gameOver || onlineTimerToken!==token){
+            stopOnlineDisplayTimer();
+            return;
+        }
+        const remaining=questionDeadlineAt
+            ? Math.max(0, questionDeadlineAt-(Date.now()+firebaseServerOffset))
+            : Math.max(0,Number(GS.timerVal||GS.timerMax||100)*1000);
         const fill=document.getElementById('timer-fill');
         if(fill) fill.style.width=Math.max(0,Math.min(100,(remaining/maxMs)*100))+'%';
         GS.timerVal=Math.ceil(remaining/1000);
-        if(remaining<=0) stopOnlineDisplayTimer();
+        if(remaining>0) requestAnimationFrame(paint);
+        else stopOnlineDisplayTimer();
     };
-    paint();
-    onlineDisplayTimer=setInterval(paint,100);
+    requestAnimationFrame(paint);
 }
 
 async function syncFirebaseClock(){
@@ -4896,7 +4950,24 @@ function triggerVictoryEffect(winnerIdx, winnerName, points){
     if(abilityPanel){ abilityPanel.classList.remove('active'); abilityPanel.style.display='none'; }
     const soulCounter = document.getElementById('soul-counter');
     if(soulCounter) soulCounter.style.display='none';
-    // Buat overlay kemenangan
+
+    // Pindahkan ke layar hasil SEBELUM cinematic dimulai.
+    // Dengan demikian papan catur tidak pernah terlihat setelah CHECKMATE.
+    showScreen('gameover-screen');
+    const winnerEl=document.getElementById('winner-name');
+    if(winnerEl) winnerEl.textContent=`🏆 ${winnerName} Menang!`;
+    const statsEl=document.getElementById('game-stats');
+    if(statsEl){
+        statsEl.innerHTML = `
+            <div class="stat-card"><div class="stat-value">${GS.moves}</div><div class="stat-label">Total Langkah</div></div>
+            <div class="stat-card"><div class="stat-value">${GS.players[winnerIdx].correct}</div><div class="stat-label">Benar</div></div>
+            <div class="stat-card"><div class="stat-value">💎 ${points}</div><div class="stat-label">Diamond Didapat</div></div>
+            <div class="stat-card"><div class="stat-value">${GS.victoryRank||"-"}</div><div class="stat-label">Rank</div></div>
+            <div class="stat-card"><div class="stat-value">${Math.max(0, GS.players[winnerIdx].hp)}</div><div class="stat-label">HP Tersisa</div></div>
+            <div class="stat-card"><div class="stat-value">${GS.mode==='ai'?'🤖 VS AI':'👥 PVP'}</div><div class="stat-label">Mode</div></div>
+        `;
+    }
+
     const overlay = document.createElement('div');
     overlay.id = 'victory-overlay';
     overlay.innerHTML = `
@@ -4906,32 +4977,20 @@ function triggerVictoryEffect(winnerIdx, winnerName, points){
             <div class="victory-main-text">CHECKMATE!</div>
             <div class="victory-winner-name">${winnerName}</div>
             <div class="victory-subtitle">MENANG!</div>
-            <div class="victory-points">+${points} 💎</div><div style="margin-top:8px;font-size:.8rem;color:#d6b15b;">${GS.victoryRank?`🏆 ${GS.victoryRank} • ${GS.victoryRating} Rating`:''}</div>
+            <div class="victory-points">+${points} 💎</div>
+            <div style="margin-top:8px;font-size:.8rem;color:#d6b15b;">${GS.victoryRank?`🏆 ${GS.victoryRank} • ${GS.victoryRating} Rating`:''}</div>
         </div>
     `;
     document.body.appendChild(overlay);
-    
-    // Mulai animasi kembang api
     launchFireworks();
-    
-    // Play sound (opsional)
     playVictorySound();
-    
-    // Setelah 4 detik, pindah ke gameover screen
+
+    // Setelah perayaan selesai, langsung terlihat score screen yang sudah ada di bawah.
     victoryOverlayTimer=setTimeout(() => {
         if(!document.body.contains(overlay)) return;
         overlay.classList.add('fade-out');
         victoryFadeTimer=setTimeout(() => {
             if(overlay.parentNode) overlay.remove();
-            showScreen('gameover-screen');
-            document.getElementById('winner-name').textContent = `🏆 ${winnerName} Menang!`;
-            document.getElementById('game-stats').innerHTML = `
-                <div class="stat-card"><div class="stat-value">${GS.moves}</div><div class="stat-label">Total Langkah</div></div>
-                <div class="stat-card"><div class="stat-value">${GS.players[winnerIdx].correct}</div><div class="stat-label">Benar</div></div>
-                <div class="stat-card"><div class="stat-value">💎 ${points}</div><div class="stat-label">Diamond Didapat</div></div><div class="stat-card"><div class="stat-value">${GS.victoryRank||"-"}</div><div class="stat-label">Rank</div></div>
-                <div class="stat-card"><div class="stat-value">${Math.max(0, GS.players[winnerIdx].hp)}</div><div class="stat-label">HP Tersisa</div></div>
-                <div class="stat-card"><div class="stat-value">${GS.mode==='ai'?'🤖 VS AI':'👥 PVP'}</div><div class="stat-label">Mode</div></div>
-            `;
         }, 800);
     }, 4000);
 }
@@ -5039,6 +5098,11 @@ function showOnlineRoomReuseMenu(){
     if(GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
     // Lepaskan mesin pertandingan, tetapi pertahankan identitas Room dan koneksi Firebase.
     if(window.onlineActionsUnsub){ window.onlineActionsUnsub(); window.onlineActionsUnsub=null; }
+    onlinePendingMoveActionId=null;
+    onlineLastResultToken='';
+    onlineLastResultSymbol='';
+    onlineLastResultColor='';
+    onlineLastResultPlayer=-1;
     GS.online=false;
     GS.gameOver=false;
     cleanupGame();
