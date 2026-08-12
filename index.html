@@ -3611,6 +3611,7 @@ function onlineRoleIndex(){ return GS.onlineRole === 'guest' ? 1 : 0; }
 function serializeOnlineState(){
     return {
         stateSeq: onlineStateSeq,
+        matchId: onlineMatchId,
         phase: GS.phase,
         currentTurn: GS.currentTurn,
         answerer: GS.answerer,
@@ -3654,6 +3655,7 @@ function applyOnlineState(st){
     if(incomingSeq && incomingSeq <= onlineLastAppliedStateSeq) return;
     if(incomingSeq) onlineLastAppliedStateSeq=incomingSeq;
     GS.onlineApplying=true;
+    if(st.matchId != null) onlineMatchId=Number(st.matchId)||1;
     GS.phase=st.phase || 'question';
     // Timer hanya boleh berjalan pada soal aktif. Fase move/syncing wajib menghentikan
     // timer authoritative host dan timer visual lokal guest.
@@ -3670,7 +3672,10 @@ function applyOnlineState(st){
     GS.currentQuestion=st.currentQuestion || null;
     GS.timerMax=st.timerMax || 100;
     GS.timerVal=st.timerVal ?? GS.timerMax;
-    onlineQuestionToken=st.questionToken || onlineQuestionToken;
+    const incomingQuestionToken=st.questionToken || '';
+    const questionChanged=incomingQuestionToken !== onlineQuestionToken;
+    onlineQuestionToken=incomingQuestionToken;
+    if(questionChanged) onlineTimerToken='';
     if(st.players){
         st.players.forEach((sp,i)=>{
             if(!GS.players[i]) return;
@@ -3815,8 +3820,13 @@ function numpadOK(){
 }
 
 async function processOnlineAction(action){
-    if(!GS.online || GS.onlineRole!=='host' || !action || GS.gameOver) return;
+    if(!GS.online || GS.onlineRole!=='host' || !action) return;
     try{
+        if(action.type==='rematch'){
+            await startOnlineRematchAsHost();
+            return;
+        }
+        if(GS.gameOver) return;
         if(action.type==='answer'){
             // MODE REBUTAN: kedua pemain boleh menjawab. Host menjadi wasit.
             if(GS.phase!=='question' || !GS.currentQuestion) return;
@@ -3915,40 +3925,26 @@ let onlineLastPiecesKey = '';
 let onlineStateSeq = 0;
 let onlineLastAppliedStateSeq = 0;
 let onlinePendingMoveActionId = null;
+let onlineMatchId = 1;
 let onlineDisplayTimer = null;
+let onlineTimerToken = '';
 
 function stopOnlineDisplayTimer(){
-    if(onlineDisplayTimer){
-        clearInterval(onlineDisplayTimer);
-        onlineDisplayTimer=null;
-    }
+    if(onlineDisplayTimer){ clearInterval(onlineDisplayTimer); onlineDisplayTimer=null; }
 }
-
 function startOnlineDisplayTimer(){
-    stopOnlineDisplayTimer();
+    if(GS.onlineRole==='host') return;
     if(GS.phase!=='question' || !GS.currentQuestion || GS.gameOver) return;
-
-    // Timer visual lokal di kedua perangkat. Host tetap menjadi wasit.
-    let remaining = Number(GS.timerVal || GS.timerMax || 100);
-    const max = Math.max(1, Number(GS.timerMax || 100));
-
-    const paint = ()=>{
-        const fill=document.getElementById('timer-fill');
-        if(fill){
-            const pct=Math.max(0,Math.min(100,(remaining/max)*100));
-            fill.style.width=pct+'%';
-        }
-        GS.timerVal=remaining;
-    };
+    const token=onlineQuestionToken || '';
+    if(onlineDisplayTimer && onlineTimerToken===token) return;
+    stopOnlineDisplayTimer(); onlineTimerToken=token;
+    let remaining=Math.max(0,Number(GS.timerVal || GS.timerMax || 100));
+    const max=Math.max(1,Number(GS.timerMax || 100));
+    const paint=()=>{ const fill=document.getElementById('timer-fill'); if(fill) fill.style.width=Math.max(0,Math.min(100,(remaining/max)*100))+'%'; };
     paint();
-
     onlineDisplayTimer=setInterval(()=>{
-        if(GS.phase!=='question' || GS.gameOver){
-            stopOnlineDisplayTimer();
-            return;
-        }
-        remaining=Math.max(0,remaining-1);
-        paint();
+        if(GS.phase!=='question' || GS.gameOver || onlineTimerToken!==token){ stopOnlineDisplayTimer(); return; }
+        remaining=Math.max(0,remaining-1); paint();
         if(remaining<=0) stopOnlineDisplayTimer();
     },1000);
 }
@@ -4861,7 +4857,15 @@ function endGame(wi){
 }
 
 // Fungsi baru: Efek kemenangan cinematic
+let victoryOverlayTimer=null;
+let victoryFadeTimer=null;
+function clearVictoryCinematic(){
+    if(victoryOverlayTimer){ clearTimeout(victoryOverlayTimer); victoryOverlayTimer=null; }
+    if(victoryFadeTimer){ clearTimeout(victoryFadeTimer); victoryFadeTimer=null; }
+    const ov=document.getElementById('victory-overlay'); if(ov) ov.remove();
+}
 function triggerVictoryEffect(winnerIdx, winnerName, points){
+    clearVictoryCinematic();
     const abilityPanel = document.getElementById('ability-panel');
     if(abilityPanel){ abilityPanel.classList.remove('active'); abilityPanel.style.display='none'; }
     const soulCounter = document.getElementById('soul-counter');
@@ -4888,10 +4892,11 @@ function triggerVictoryEffect(winnerIdx, winnerName, points){
     playVictorySound();
     
     // Setelah 4 detik, pindah ke gameover screen
-    setTimeout(() => {
+    victoryOverlayTimer=setTimeout(() => {
+        if(!document.body.contains(overlay)) return;
         overlay.classList.add('fade-out');
-        setTimeout(() => {
-            overlay.remove();
+        victoryFadeTimer=setTimeout(() => {
+            if(overlay.parentNode) overlay.remove();
             showScreen('gameover-screen');
             document.getElementById('winner-name').textContent = `🏆 ${winnerName} Menang!`;
             document.getElementById('game-stats').innerHTML = `
@@ -5000,57 +5005,38 @@ function playVictorySound(){
 }
 
 
-async function rematch(){
-    if(!GS.online){
-        startGame();
-        return;
-    }
-
-    // Rematch online: jangan meninggalkan GS.online=true dengan state game lama.
-    // Host membuat state pertandingan baru; Guest cukup menunggu state tersebut.
-    stopOnlineDisplayTimer();
+async function startOnlineRematchAsHost(){
+    if(!GS.online || GS.onlineRole!=='host' || !rankedRoomRef) return;
+    clearVictoryCinematic(); stopOnlineDisplayTimer(); onlineTimerToken='';
     if(GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
-    onlineAnswerAttempts=new Set();
-    onlinePendingMoveActionId=null;
-    onlineQuestionToken='';
-    onlineLastPiecesKey='';
-    onlineLastAppliedStateSeq=0;
-    onlineStateSeq=0;
-    GS.victoryShown=false;
-    GS.victoryWinnerIndex=-1;
-    GS.victoryPoints=0;
-    GS.gameOver=false;
-    GS.phase='question';
-
-    // Hapus overlay kemenangan lama jika masih ada.
-    const oldVictory=document.getElementById('victory-overlay');
-    if(oldVictory) oldVictory.remove();
-
-    // Bangun papan baru di kedua client. Jangan membuat soal lokal.
+    onlineAnswerAttempts=new Set(); onlinePendingMoveActionId=null;
+    onlineQuestionToken=''; onlineLastPiecesKey=''; onlineLastAppliedStateSeq=0; onlineStateSeq=0;
+    onlineMatchId=Math.max(1,Number(onlineMatchId||1)+1);
+    GS.victoryShown=false; GS.victoryWinnerIndex=-1; GS.victoryPoints=0;
+    GS.victoryRank=''; GS.victoryRating=0; GS.gameOver=false; GS.phase='question';
+    GS.moves=0; GS.currentTurn=0; GS.answerer=-1; GS.currentAnswer='';
     startGame();
-
-    if(GS.onlineRole==='host'){
-        try{
-            // Pastikan room tetap berada pada status bermain.
-            await window.firebaseUpdate(rankedRoomRef,{
-                status:'playing',
-                lastUpdate:window.firebaseServerTimestamp()
-            });
-
-            // Host adalah satu-satunya pembuat soal authoritative.
-            generateQuestion();
-            await publishOnlineState({phase:'question',gameOver:false});
-        }catch(e){
-            console.error('Rematch online:',e);
-            alert('❌ Gagal memulai pertandingan ulang: '+(e?.message||e));
-        }
-    }else{
-        const ti=document.getElementById('turn-indicator');
-        if(ti) ti.textContent='⏳ Menunggu Host memulai pertandingan ulang...';
-        watchOnlineRoom();
-    }
+    await window.firebaseUpdate(rankedRoomRef,{status:'playing',lastUpdate:window.firebaseServerTimestamp()});
+    generateQuestion();
+    await publishOnlineState({phase:'question',gameOver:false,matchId:onlineMatchId});
 }
 
+async function rematch(){
+    if(!GS.online){ startGame(); return; }
+    if(GS.onlineRole==='host'){
+        try{ await startOnlineRematchAsHost(); }
+        catch(e){ console.error('Rematch online:',e); alert('❌ Gagal memulai pertandingan ulang: '+(e?.message||e)); }
+    }else{
+        clearVictoryCinematic(); stopOnlineDisplayTimer(); onlineTimerToken='';
+        const actionId=Date.now()+'_'+Math.random().toString(36).slice(2);
+        const action={type:'rematch',player:onlineRoleIndex(),clientId:window.firebaseAuthUid||rankedClientId,actionId};
+        try{
+            await window.firebaseSet(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions/${actionId}`),action);
+            const ti=document.getElementById('turn-indicator');
+            if(ti) ti.textContent='⏳ Meminta pertandingan baru dari Host...';
+        }catch(e){ alert('❌ Gagal meminta pertandingan baru: '+(e?.message||e)); }
+    }
+}
 
 // ========================================
 // HISTORY
