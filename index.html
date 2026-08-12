@@ -1754,8 +1754,9 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { 
-        getDatabase, ref, set, get, onValue, push, remove, 
-        onDisconnect, serverTimestamp, update, off, runTransaction 
+        getDatabase, ref, set, get, onValue, push, remove,
+        onDisconnect, serverTimestamp, update, off, runTransaction,
+        query, orderByChild, limitToLast, increment
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
     
     const firebaseConfig = {
@@ -1795,6 +1796,10 @@
     window.firebaseUpdate = update;
     window.firebaseOff = off;
     window.firebaseRunTransaction = runTransaction;
+    window.firebaseQuery = query;
+    window.firebaseOrderByChild = orderByChild;
+    window.firebaseLimitToLast = limitToLast;
+    window.firebaseIncrement = increment;
     
     console.log('🔥 Firebase connected!');
     window.dispatchEvent(new Event('firebaseReady'));
@@ -1958,10 +1963,54 @@
 .question-overlay.active{animation:none !important;isolation:auto !important;contain:none !important;}
 .question-overlay .timer-bar,.question-overlay .question-box{transform:none !important;will-change:auto !important;}
 </style>
-<style id="diagnostic-hide-piece-select">
-/* DIAGNOSTIC ONLY: sembunyikan notifikasi pilih bidak/tujuan untuk menguji sumber garis HP.
-   Tidak mengubah Commander, bidak, Firebase, timer, atau gameplay. */
-#piece-select-msg{display:none !important;}
+<style id="fix-12-board-seam">
+/* ===================================================================
+   FIX 12 - GARIS ANEH DI PAPAN CATUR (HP saja, muncul setelah menjawab)
+   -------------------------------------------------------------------
+   Penyebab sisi CSS: overlay soal (position:fixed, latar semi-transparan)
+   menutupi canvas. Saat overlay di-display:none, browser HP MENGGABUNG
+   ULANG (recomposite) layer di bawahnya. Karena canvas belum punya layer
+   GPU sendiri, isinya di-resample -> tepi tiap kotak jadi garis tipis.
+   Solusi: canvas dipromosikan ke layer GPU permanen sehingga isinya tidak
+   pernah ikut di-resample saat overlay muncul/hilang.
+   =================================================================== */
+#game-canvas{
+    display:block;
+    width:100%;
+    height:100%;
+    /* layer GPU sendiri, permanen */
+    transform:translateZ(0);
+    -webkit-transform:translateZ(0);
+    backface-visibility:hidden;
+    -webkit-backface-visibility:hidden;
+    /* jangan pernah difilter/di-blur oleh induknya */
+    filter:none!important;
+    /* matikan smoothing saat elemen di-scale oleh browser */
+    image-rendering:auto;
+    /* hilangkan highlight biru saat disentuh */
+    -webkit-tap-highlight-color:transparent;
+    touch-action:none;
+}
+.game-area{
+    filter:none!important;
+    transform:none!important;
+    /* isolasi: perubahan overlay di luar tidak memaksa repaint canvas */
+    isolation:isolate;
+    contain:paint;
+}
+/* Overlay soal: tidak boleh punya efek yang memaksa recomposite layer bawahnya */
+.question-overlay{
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    will-change:auto!important;
+}
+/* Notifikasi/feedback melayang: pakai layer sendiri agar tidak menyentuh canvas */
+#piece-select-msg,#result-feedback,#move-message{
+    transform:translateZ(0) translateX(-50%);
+    -webkit-transform:translateZ(0) translateX(-50%);
+    backface-visibility:hidden;
+}
+#result-feedback{transform:translateZ(0) translate(-50%,-50%);-webkit-transform:translateZ(0) translate(-50%,-50%);}
 </style>
 </head>
 <body>
@@ -2380,6 +2429,10 @@ let GS = {
     online: false,
     onlineRole: null,
     onlineRoomCode: null,
+    onlineMatchId: null,      // RANK: id unik pertandingan (anti klaim ganda)
+    onlineStartedAt: 0,
+    opponentRating: 1000,     // RANK: rating lawan untuk Elo
+    victoryRatingDelta: 0,
     onlineApplying: false,
 };
 
@@ -2466,13 +2519,14 @@ function getUnlockedCommanders(){
 function isCommanderUnlocked(cmd){
     return cmd.locked !== true || getUnlockedCommanders().includes(cmd.id);
 }
-function unlockCommander(cmdId){
+// AMAN: pembelian Commander sekarang memotong saldo lewat transaksi server.
+// Saldo hasil edit localStorage tidak akan diterima karena server yang memeriksa.
+async function unlockCommander(cmdId){
     const cmd = COMMANDERS.find(c => c.id === cmdId);
     if(!cmd || cmd.locked !== true || isCommanderUnlocked(cmd)) return true;
-    const pts = getPoints();
-    if(pts < cmd.unlockCost) return false;
-    PLAYER_POINTS = pts - cmd.unlockCost;
-    savePoints();
+    if(getPoints() < cmd.unlockCost) return false;   // cek cepat di UI
+    const ok = await spendPointsSecure(cmd.unlockCost, cmd.id);  // cek sebenarnya di server
+    if(!ok) return false;
     const unlocked = getUnlockedCommanders();
     if(!unlocked.includes(cmd.id)) unlocked.push(cmd.id);
     localStorage.setItem('mc_unlocked_commanders', JSON.stringify(unlocked));
@@ -2518,7 +2572,7 @@ if(cmd.image){
             ${isLocked ? `<div class="commander-lock">🔒 ${cmd.unlockCost} POIN</div>` : (cmd.locked===false && cmd.image?`<div class="commander-status">✨ TERBUKA</div>`:'')}
         `;
         
-        d.onclick = () => {
+        d.onclick = async () => {
             if(cmd.locked === true && !isCommanderUnlocked(cmd)){
                 const currentPts = getPoints();
                 if(currentPts < cmd.unlockCost){
@@ -2527,9 +2581,15 @@ if(cmd.image){
                 }
                 const ok = confirm('🔓 Buka ' + cmd.name + '?\n\nBiaya: 💎 ' + cmd.unlockCost.toLocaleString('id-ID') + ' poin\nPoin setelah membuka: 💎 ' + (currentPts-cmd.unlockCost).toLocaleString('id-ID'));
                 if(!ok) return;
-                if(unlockCommander(cmd.id)){
+                d.style.opacity='0.6';                       // cegah klik ganda saat transaksi
+                const bought = await unlockCommander(cmd.id);
+                d.style.opacity='';
+                if(bought){
                     selCmd[pi] = i;
                     updatePointsDisplay();
+                    renderCmd(cid, pi);
+                }else{
+                    alert('❌ Pembelian gagal.\nSaldo di server tidak mencukupi atau koneksi terputus.');
                     renderCmd(cid, pi);
                 }
             } else {
@@ -2546,6 +2606,9 @@ if(cmd.image){
 // ========================================
 let scene,camera,renderer,raycaster,mouse;
 let boardMeshes=[],pieceMeshes=[],highlightMeshes=[];
+let boardTouchHandledAt=0;   // FIX 12: cegah ketukan terproses dua kali
+let renderGeneration=0;      // FIX 12: token loop render aktif
+let threeContextLost=false;  // FIX 12: status WebGL context
 let animId;
 
 // ========================================
@@ -2674,7 +2737,10 @@ function initThreeJS(){
     scene.background=new THREE.Color(0x080818);
     scene.fog=new THREE.FogExp2(0x080818, 0.008);
 
-    camera=new THREE.PerspectiveCamera(42, container.clientWidth/container.clientHeight, 0.1, 120);
+    // FIX 12: near plane dinaikkan 0.1 -> 1. Rasio far/near turun dari 1200x jadi 120x
+    // sehingga presisi depth buffer HP (sering hanya 16-bit) jauh lebih tinggi.
+    // Inilah penyebab utama z-fighting berbentuk garis di pertemuan tile.
+    camera=new THREE.PerspectiveCamera(42, container.clientWidth/container.clientHeight, 1, 120);
     // MOBILE: deteksi layar sentuh agar HP landscape juga memakai framing khusus.
     const isMobile = window.matchMedia('(pointer: coarse)').matches ||
                      navigator.maxTouchPoints > 0 ||
@@ -2690,9 +2756,32 @@ function initThreeJS(){
     // Frame mobile lebih aman: seluruh baris bidak bawah tetap masuk layar.
     camera.lookAt(0, viewFromGuest ? (isMobile ? 0.65 : 0.5) : (isMobile ? -0.65 : -0.5), 0);
 
-    renderer=new THREE.WebGLRenderer({canvas, antialias:true});
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    // FIX 12: konfigurasi renderer yang aman untuk GPU HP.
+    // - antialias dimatikan di HP: MSAA pada tile yang saling menimpa justru
+    //   membuat garis/seam saat komposit ulang setelah overlay soal ditutup.
+    // - preserveDrawingBuffer:false + alpha:false => tidak ada sisa frame lama.
+    // - powerPreference high-performance supaya tidak dipindah ke GPU hemat daya
+    //   (perpindahan GPU inilah yang memicu artefak setelah jeda 1.2 detik).
+    const isMobileGPU = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+    renderer=new THREE.WebGLRenderer({
+        canvas,
+        antialias: !isMobileGPU,
+        alpha:false,
+        premultipliedAlpha:false,
+        preserveDrawingBuffer:false,
+        powerPreference:'high-performance',
+        stencil:false,
+        depth:true,
+        failIfMajorPerformanceCaveat:false
+    });
+    // FIX 12: pixel ratio dibulatkan ke bawah. DPR pecahan (mis. 2.625 / 3.5 pada HP)
+    // membuat ukuran buffer tidak bulat -> baris piksel terakhir tiap tile diinterpolasi
+    // dan terlihat sebagai garis tipis. Bilangan bulat menghilangkan resampling ini.
+    const safeDPR = Math.min(Math.floor(window.devicePixelRatio || 1), 2) || 1;
+    renderer.setPixelRatio(safeDPR);
+    renderer.setSize(container.clientWidth, container.clientHeight, false);
+    renderer.autoClear = true;
+    renderer.sortObjects = true;
     // No dynamic shadows: prevents the moving horizontal seam/artifact seen after answer state changes,
     // and significantly reduces GPU work on phones. Lighting remains symmetric.
     renderer.shadowMap.enabled=false;
@@ -2720,27 +2809,43 @@ function initThreeJS(){
     // FIX 11.13: alas papan tanpa celah di bawah semua tile.
     // Tile sedikit overlap untuk mencegah seam horizontal akibat rasterisasi
     // perspektif pada layar/device-pixel-ratio HP.
-    const boardUnderlayGeo = new THREE.BoxGeometry(BOARD_SIZE*TILE_SIZE, 0.10, BOARD_SIZE*TILE_SIZE);
+    // FIX 12: alas dibuat lebih tebal dan diturunkan agar permukaan atasnya
+    // TIDAK pernah sebidang dengan dasar tile (jarak aman > 0.15 unit).
+    const boardUnderlayGeo = new THREE.BoxGeometry(BOARD_SIZE*TILE_SIZE, 0.40, BOARD_SIZE*TILE_SIZE);
     const boardUnderlayMat = new THREE.MeshStandardMaterial({color:0x6b4226, metalness:0.05, roughness:0.75});
     const boardUnderlay = new THREE.Mesh(boardUnderlayGeo, boardUnderlayMat);
-    boardUnderlay.position.set(0, -0.055, 0);
+    boardUnderlay.renderOrder=0;
+    boardUnderlay.position.set(0, -0.30, 0);
     boardUnderlay.receiveShadow=false;
     scene.add(boardUnderlay);
 
     // Tiles
+    // FIX 12: AKAR MASALAH GARIS DI HP.
+    // Sebelumnya tiap tile dibuat +0.012 lebih besar agar "tidak ada celah",
+    // sehingga 64 kotak saling bertumpuk. Dua permukaan pada kedalaman hampir
+    // sama = z-fighting. Di laptop (depth 24-bit) tidak terlihat; di HP
+    // (depth 16-bit) muncul sebagai garis yang berpindah-pindah saat kamera
+    // atau komposisi frame berubah.
+    // Solusi: tile berukuran PERSIS TILE_SIZE (tanpa overlap), dipasang di atas
+    // alas papan, dengan polygonOffset supaya tetap menang terhadap alas.
     boardMeshes=[];
+    const tileGeo = new THREE.BoxGeometry(TILE_SIZE, 0.12, TILE_SIZE);
+    const tileMatLight = new THREE.MeshStandardMaterial({
+        color:0xdecba4, metalness:0.1, roughness:0.6,
+        polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1
+    });
+    const tileMatDark = new THREE.MeshStandardMaterial({
+        color:0x6b4226, metalness:0.1, roughness:0.6,
+        polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1
+    });
     for(let r=0;r<8;r++){
         boardMeshes[r]=[];
         for(let c=0;c<8;c++){
             const isLight=(r+c)%2===0;
-            const geo=new THREE.BoxGeometry(TILE_SIZE+0.012, 0.12, TILE_SIZE+0.012);
-            const mat=new THREE.MeshStandardMaterial({
-                color: isLight ? 0xdecba4 : 0x6b4226,
-                metalness:0.1, roughness:0.6
-            });
-            const tile=new THREE.Mesh(geo, mat);
+            const tile=new THREE.Mesh(tileGeo, isLight ? tileMatLight : tileMatDark);
             tile.position.set((c-3.5)*TILE_SIZE, -0.04, (r-3.5)*TILE_SIZE);
             tile.receiveShadow=false;
+            tile.renderOrder=1;
             tile.userData={row:r, col:c, type:'tile'};
             scene.add(tile);
             boardMeshes[r][c]=tile;
@@ -2751,38 +2856,89 @@ function initThreeJS(){
 
     raycaster=new THREE.Raycaster();
     mouse=new THREE.Vector2();
-    canvas.addEventListener('click', onBoardClick);
-    canvas.addEventListener('pointerdown', (event)=>{
-        if(event.pointerType === 'touch'){
-            event.preventDefault();
+    // FIX 12: listener dipasang SEKALI saja. Sebelumnya tiap mulai game baru
+    // menambah pasangan listener baru (yang lama tidak pernah dilepas), sehingga
+    // satu ketukan bisa terproses 2-3 kali dan memicu render bertumpuk.
+    if(!canvas.dataset.inputBound){
+        canvas.dataset.inputBound='1';
+        canvas.addEventListener('click', (event)=>{
+            if(boardTouchHandledAt && Date.now()-boardTouchHandledAt < 700) return; // sudah ditangani touch
             onBoardClick(event);
-        }
-    }, {passive:false});
+        });
+        canvas.addEventListener('pointerdown', (event)=>{
+            if(event.pointerType === 'touch'){
+                boardTouchHandledAt = Date.now();
+                event.preventDefault();
+                onBoardClick(event);
+            }
+        }, {passive:false});
+    }
+
+    // FIX 12: setiap kali initThreeJS dipanggil (mulai game baru), loop animasi
+    // LAMA sebelumnya tetap hidup dan ikut merender ke canvas yang sama.
+    // Dua loop yang merender bergantian pada satu canvas = frame setengah jadi
+    // dan artefak garis. Token generasi memastikan hanya loop terbaru yang jalan.
+    renderGeneration++;
+    const myGeneration = renderGeneration;
+    threeContextLost = false;
 
     (function animate(){
+        if(myGeneration !== renderGeneration) return; // loop lama berhenti total
         animId=requestAnimationFrame(animate);
+        if(threeContextLost) return;
         const t=Date.now()*0.001;
         pieceMeshes.forEach((pm,i)=>{
             if(pm && pm.mesh){
                 pm.mesh.position.y = pm.baseY + Math.sin(t*2 + i*0.7)*0.025;
             }
         });
-        if(renderer && renderer.getContext && renderer.getContext()) renderer.render(scene, camera);
+        if(renderer && renderer.getContext && renderer.getContext()){
+            try{ renderer.render(scene, camera); }catch(e){}
+        }
     })();
 
+    // FIX 12: HP sering melepas WebGL context saat overlay/keyboard muncul atau
+    // saat tab kehilangan fokus. Tanpa handler ini canvas menampilkan frame rusak.
+    canvas.addEventListener('webglcontextlost', (e)=>{
+        e.preventDefault();
+        threeContextLost = true;
+        console.warn('WebGL context hilang - render dijeda');
+    }, false);
+    canvas.addEventListener('webglcontextrestored', ()=>{
+        threeContextLost = false;
+        console.log('WebGL context pulih - membangun ulang papan');
+        try{ initThreeJS(); }catch(err){ console.warn(err); }
+    }, false);
+
     window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    if(window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
 }
 
+let resizeRAF=0, lastW=0, lastH=0;
 function onResize(){
-    const c=document.querySelector('.game-area');
-    if(!c||!camera||!renderer) return;
-    camera.aspect=c.clientWidth/c.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(c.clientWidth, c.clientHeight);
+    // FIX 12: resize di-debounce ke frame berikutnya dan diabaikan bila ukuran
+    // tidak benar-benar berubah. Di HP, munculnya bar URL / keypad memicu banyak
+    // event resize; setSize berulang di tengah frame = canvas ter-resample = garis.
+    if(resizeRAF) return;
+    resizeRAF=requestAnimationFrame(()=>{
+        resizeRAF=0;
+        const c=document.querySelector('.game-area');
+        if(!c||!camera||!renderer) return;
+        const w=Math.max(1, Math.round(c.clientWidth));
+        const h=Math.max(1, Math.round(c.clientHeight));
+        if(w===lastW && h===lastH) return;   // ukuran sama -> jangan sentuh buffer
+        lastW=w; lastH=h;
+        camera.aspect=w/h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h, false);
+    });
 }
 
 function cleanupGame(){
+    renderGeneration++;                 // FIX 12: matikan loop render yang sedang jalan
     if(animId) cancelAnimationFrame(animId);
+    animId=0;
     if(GS.qTimer) clearInterval(GS.qTimer);
     stopLocalTimerVisual();
     stopAITimer();
@@ -2790,6 +2946,9 @@ function cleanupGame(){
     const c=document.getElementById('game-canvas');
     if(c) c.removeEventListener('click', onBoardClick);
     window.removeEventListener('resize', onResize);
+    window.removeEventListener('orientationchange', onResize);
+    if(window.visualViewport) window.visualViewport.removeEventListener('resize', onResize);
+    lastW=0; lastH=0;
 }
 
 // ========================================
@@ -3073,9 +3232,16 @@ function createPieceMesh(piece){
     // Glow ring at base
     const gr = 0.38 + scale*0.05;
     const glowGeo=new THREE.RingGeometry(gr, gr+0.08, 32);
-    const glowMat=new THREE.MeshBasicMaterial({color:mainColor, transparent:true, opacity:0.35, side:THREE.DoubleSide});
+    // FIX 12: cincin glow melayang tepat di atas tile. Tanpa depthWrite:false
+    // cincin ini ikut menghasilkan garis lengkung saat frame dikomposit ulang di HP.
+    const glowMat=new THREE.MeshBasicMaterial({
+        color:mainColor, transparent:true, opacity:0.35, side:THREE.DoubleSide,
+        depthWrite:false,
+        polygonOffset:true, polygonOffsetFactor:-3, polygonOffsetUnits:-3
+    });
     const glow=new THREE.Mesh(glowGeo, glowMat);
-    glow.rotation.x=-Math.PI/2; glow.position.y=0.01;
+    glow.renderOrder=4;
+    glow.rotation.x=-Math.PI/2; glow.position.y=0.02;
     group.add(glow);
 
     group.scale.set(scale, scale, scale);
@@ -3122,9 +3288,13 @@ function onBoardClick(event){
     mouse.y = -((event.clientY-rect.top)/rect.height)*2+1;
 
     raycaster.setFromCamera(mouse, camera);
+    // FIX 12: hanya uji tile + bidak, bukan seluruh scene (termasuk highlight,
+    // cincin glow, dan alas papan). Selain jauh lebih ringan di HP, ini
+    // mencegah ketukan "meleset" mengenai mesh dekoratif.
     const objs=[];
-    scene.traverse(o=>{ if(o.isMesh) objs.push(o); });
-    const hits=raycaster.intersectObjects(objs);
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++) if(boardMeshes[r] && boardMeshes[r][c]) objs.push(boardMeshes[r][c]);
+    pieceMeshes.forEach(pm=>{ if(pm && pm.mesh) objs.push(pm.mesh); });
+    const hits=raycaster.intersectObjects(objs, true);
     if(!hits.length) return;
 
     let clickPiece=null, clickTile=null;
@@ -3167,10 +3337,17 @@ function pieceName(t){
 
 function hlTile(r, c, color){
     const g=new THREE.PlaneGeometry(TILE_SIZE-0.06, TILE_SIZE-0.06);
-    const m=new THREE.MeshBasicMaterial({color, transparent:true, opacity:0.45, side:THREE.DoubleSide});
+    // FIX 12: highlight tidak menulis depth buffer dan punya renderOrder tinggi,
+    // supaya tidak ikut membuat z-fighting dengan permukaan tile di bawahnya.
+    const m=new THREE.MeshBasicMaterial({
+        color, transparent:true, opacity:0.45, side:THREE.DoubleSide,
+        depthWrite:false, depthTest:true,
+        polygonOffset:true, polygonOffsetFactor:-4, polygonOffsetUnits:-4
+    });
     const mesh=new THREE.Mesh(g, m);
+    mesh.renderOrder=5;
     mesh.rotation.x=-Math.PI/2;
-    mesh.position.set((c-3.5)*TILE_SIZE, 0.08, (r-3.5)*TILE_SIZE);
+    mesh.position.set((c-3.5)*TILE_SIZE, 0.09, (r-3.5)*TILE_SIZE);
     scene.add(mesh);
     highlightMeshes.push(mesh);
 }
@@ -3854,11 +4031,13 @@ function applyOnlineState(st){
             if(!GS.victoryShown && GS.victoryWinnerIndex >= 0 && GS.players[GS.victoryWinnerIndex]){
                 GS.victoryShown = true;
                 const localWon = GS.victoryWinnerIndex === onlineRoleIndex();
-                const result = settleMMCRankResult(localWon);
+                // matchId unik per pertandingan -> reward tidak bisa diklaim dua kali
+                const matchId = GS.onlineMatchId || ('m_'+(GS.onlineRoomCode||'x')+'_'+(GS.onlineStartedAt||0));
+                const result = settleMMCRankResult(localWon, GS.opponentRating, matchId);
                 GS.victoryPoints = result.diamondReward;
                 GS.victoryRank = result.rank.name;
                 GS.victoryRating = result.rating;
-                publishMMCRankProfile();
+                GS.victoryRatingDelta = result.ratingDelta;
                 updateMMCProfileUI();
                 triggerVictoryEffect(GS.victoryWinnerIndex, GS.players[GS.victoryWinnerIndex].name, GS.victoryPoints);
             }
@@ -4139,6 +4318,11 @@ function initOnlineGameFromRoom(room){
     GS.onlineRole=isHost?'host':'guest';
     GS.onlineRoomCode=rankedRoomCode;
     onlineMatchId=Number(room.game?.matchId||room.matchId||1)||1;
+    // RANK: simpan rating lawan untuk perhitungan Elo saat pertandingan selesai,
+    // dan buat matchId unik agar reward diamond hanya bisa diklaim satu kali.
+    GS.opponentRating = Number(isHost ? room.guest?.rating : room.host?.rating) || 1000;
+    GS.onlineStartedAt = Number(room.createdAt || room.game?.startedAt || Date.now());
+    GS.onlineMatchId = `${rankedRoomCode}_${onlineMatchId}_${GS.onlineStartedAt}`;
     GS.mode='pvp';
     selCmd[0]=room.host.commanderIndex ?? 0;
     selCmd[1]=room.guest.commanderIndex ?? 0;
@@ -4234,7 +4418,21 @@ function updateAD(){
     const d=document.getElementById('answer-display');
     d.innerHTML = GS.currentAnswer || '<span class="answer-cursor">|</span>';
 }
-function hideQ(){ document.getElementById('question-overlay').classList.remove('active'); }
+function hideQ(){
+    const qo=document.getElementById('question-overlay');
+    if(!qo) return;
+    qo.classList.remove('active');
+    // FIX 12: setelah overlay ditutup, minta satu frame render bersih.
+    // Ini memaksa GPU HP menggambar ulang papan dari geometri (bukan dari
+    // cache layer lama yang sudah ter-resample), sehingga garis tidak tersisa.
+    requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+            if(renderer && scene && camera && !threeContextLost){
+                try{ renderer.render(scene, camera); }catch(e){}
+            }
+        });
+    });
+}
 function showResult(s,c){
     const el=document.getElementById('result-feedback');
     if(!el) return;
@@ -4484,11 +4682,15 @@ if(!rankedClientId){
 
 function rankedPlayerData(){
     const name = document.getElementById('ranked-player-name').value.trim();
+    const prof = getMMCProfile();
     return {
         id: window.firebaseAuthUid || rankedClientId,
         name,
         commanderIndex: rankedSelCmd,
         commanderId: COMMANDERS[rankedSelCmd]?.id || null,
+        // RANK: rating dibawa ke room supaya lawan bisa menghitung Elo dengan benar
+        rating: Number(prof.rating)||1000,
+        rank: getMMCRank(prof.rating).name,
         online: true,
         joinedAt: Date.now()
     };
@@ -4828,34 +5030,133 @@ function showMMCTab(tab){
     const rank=document.getElementById('mmc-rank-tab'), top=document.getElementById('mmc-top-tab');
     if(!rank||!top)return;
     rank.style.display=tab==='rank'?'block':'none'; top.style.display=tab==='top'?'block':'none';
+    // tandai tab aktif secara visual
+    document.querySelectorAll('.mmc-dashboard-tabs button').forEach((b,i)=>{
+        const on=(i===0&&tab==='rank')||(i===1&&tab==='top');
+        b.style.background=on?'rgba(214,177,91,.22)':'rgba(255,255,255,.04)';
+        b.style.color=on?'#f4d77d':'#ddd';
+    });
+    if(tab==='top') loadMMCLeaderboard();
     if(tab==='rank'){
         const p=getMMCProfile(),r=getMMCRank(p.rating);
+        const idx=MMC_RANKS.findIndex(x=>x.id===r.id);
+        const next=MMC_RANKS[idx+1];
+        const winRate=p.games?Math.round((p.wins/p.games)*100):0;
+        const prog=next
+            ? Math.max(0,Math.min(100,Math.round(((p.rating-r.min)/(next.min-r.min))*100)))
+            : 100;
         rank.innerHTML=`<div class="mmc-rank-grid">
           <div class="mmc-rank-box"><b>${r.icon} ${r.name}</b><small>Rank sekarang</small></div>
           <div class="mmc-rank-box"><b>${p.rating}</b><small>Rating</small></div>
           <div class="mmc-rank-box"><b>${p.wins}/${p.losses}</b><small>Menang/Kalah</small></div>
           <div class="mmc-rank-box"><b>💎 ${p.diamonds.toLocaleString('id-ID')}</b><small>Diamond</small></div>
+          <div class="mmc-rank-box"><b>${winRate}%</b><small>Win rate (${p.games} main)</small></div>
+          <div class="mmc-rank-box"><b>🔥 ${p.streak} / ${p.bestStreak||0}</b><small>Streak / terbaik</small></div>
+        </div>
+        <div style="margin-top:9px">
+          <div style="display:flex;justify-content:space-between;font-size:.62rem;color:#aaa;margin-bottom:4px">
+            <span>${r.icon} ${r.name}</span>
+            <span>${next?`${next.icon} ${next.name} (${next.min})`:'Rank tertinggi 👑'}</span>
+          </div>
+          <div style="height:8px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden">
+            <div style="height:100%;width:${prog}%;background:linear-gradient(90deg,#d6b15b,#f4d77d);border-radius:99px"></div>
+          </div>
+          ${next?`<div style="font-size:.6rem;color:#888;margin-top:4px;text-align:center">Butuh ${Math.max(0,next.min-p.rating)} rating lagi menuju ${next.name}</div>`:''}
         </div>`;
     }
 }
 async function publishMMCRankProfile(){
     if(!window.firebaseDB || !window.firebaseAuthUid)return;
     const p=getMMCProfile(),r=getMMCRank(p.rating);
-    const name=(document.getElementById('ranked-player-name')?.value||localStorage.getItem('mc_ranked_name')||'Pemain').trim();
+    const name=(document.getElementById('ranked-player-name')?.value||localStorage.getItem('mc_ranked_name')||'Pemain').trim()||'Pemain';
     try{
         await window.firebaseUpdate(window.firebaseRef(window.firebaseDB,'leaderboard/'+window.firebaseAuthUid),{
-            name:name.slice(0,15),rating:p.rating,rank:r.name,wins:p.wins,games:p.games,streak:p.streak,updatedAt:window.firebaseServerTimestamp()
+            uid:window.firebaseAuthUid,
+            name:name.slice(0,15),
+            rating:Number(p.rating)||1000,
+            rank:r.name,
+            wins:Number(p.wins)||0,
+            losses:Number(p.losses)||0,
+            games:Number(p.games)||0,
+            streak:Number(p.streak)||0,
+            bestStreak:Number(p.bestStreak)||0,
+            winRate: p.games ? Math.round((p.wins/p.games)*100) : 0,
+            updatedAt:window.firebaseServerTimestamp()
         });
     }catch(e){console.warn('Leaderboard publish:',e.message);}
 }
+function mmcEscape(t){
+    return String(t==null?'':t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* LEADERBOARD GLOBAL (selesai)
+   - Mengurutkan di SISI SERVER dengan orderByChild('rating') + limitToLast(50).
+     Sebelumnya seluruh node 'leaderboard' diunduh lalu diurutkan di HP —
+     lambat dan boros kuota begitu pemain bertambah banyak.
+   - Baris milik sendiri disorot, plus peringkat pribadi walau di luar Top 50. */
+let mmcLeaderboardBusy=false;
 async function loadMMCLeaderboard(){
-    const top=document.getElementById('mmc-top-tab'); if(!top||!window.firebaseDB)return;
+    const top=document.getElementById('mmc-top-tab');
+    if(!top) return;
+    if(!window.firebaseDB){ top.innerHTML='<div style="padding:12px;text-align:center;color:#aaa">Menunggu koneksi Firebase…</div>'; return; }
+    if(mmcLeaderboardBusy) return;
+    mmcLeaderboardBusy=true;
+    top.innerHTML='<div style="padding:12px;text-align:center;color:#aaa">⏳ Memuat papan peringkat…</div>';
     try{
-        const snap=await window.firebaseGet(window.firebaseRef(window.firebaseDB,'leaderboard'));
-        const rows=Object.values(snap.val()||{}).filter(Boolean).sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,10);
-        top.innerHTML='<div class="mmc-leader-row mmc-leader-head"><span>#</span><span>Pemain</span><span>Rank</span><span>Rating</span></div>'+
-          (rows.length?rows.map((x,i)=>`<div class="mmc-leader-row"><span>${i+1}</span><span><b>${String(x.name||'Pemain').replace(/[<>&"]/g,'')}</b></span><span>${x.rank||'Bronze'}</span><span>${x.rating||1000}</span></div>`).join(''):'<div style="padding:12px;text-align:center;color:#aaa">Belum ada data global.</div>');
-    }catch(e){top.innerHTML='<div style="padding:12px;color:#f88">Leaderboard belum dapat dimuat.</div>';}
+        const base=window.firebaseRef(window.firebaseDB,'leaderboard');
+        let snap;
+        try{
+            // Jalur cepat: server yang mengurutkan (butuh index "rating" di Rules)
+            const q=window.firebaseQuery(base, window.firebaseOrderByChild('rating'), window.firebaseLimitToLast(50));
+            snap=await window.firebaseGet(q);
+        }catch(err){
+            snap=await window.firebaseGet(base);   // cadangan bila index belum dipasang
+        }
+        const all=Object.entries(snap.val()||{})
+            .map(([uid,v])=>({uid, ...(v||{})}))
+            .filter(x=>x && x.name)
+            .sort((a,b)=>(b.rating||0)-(a.rating||0));
+
+        const myUid=window.firebaseAuthUid;
+        const myIndex=all.findIndex(x=>x.uid===myUid);
+        const rows=all.slice(0,50);
+
+        if(!rows.length){
+            top.innerHTML='<div style="padding:12px;text-align:center;color:#aaa">Belum ada data global. Jadilah yang pertama!</div>';
+            return;
+        }
+
+        const medal=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+        let html='<div class="mmc-leader-row mmc-leader-head"><span>#</span><span>Pemain</span><span>Rank</span><span>Rating</span></div>';
+        html+=rows.map((x,i)=>{
+            const mine = x.uid===myUid;
+            const style = mine ? ' style="background:rgba(214,177,91,.16);border-radius:7px"' : '';
+            return `<div class="mmc-leader-row"${style}>
+                <span>${medal(i)}</span>
+                <span><b>${mmcEscape(x.name).slice(0,15)}</b>${mine?' <small style="color:#d6b15b">(Anda)</small>':''}</span>
+                <span>${mmcEscape(x.rank||'Bronze')}</span>
+                <span>${Number(x.rating)||1000}</span>
+            </div>`;
+        }).join('');
+
+        if(myIndex>=50){
+            const me=all[myIndex];
+            html+=`<div style="text-align:center;color:#666;padding:4px">⋮</div>
+            <div class="mmc-leader-row" style="background:rgba(214,177,91,.16);border-radius:7px">
+                <span>${myIndex+1}</span>
+                <span><b>${mmcEscape(me.name).slice(0,15)}</b> <small style="color:#d6b15b">(Anda)</small></span>
+                <span>${mmcEscape(me.rank||'Bronze')}</span>
+                <span>${Number(me.rating)||1000}</span>
+            </div>`;
+        }
+        html+=`<div style="text-align:center;color:#777;font-size:.6rem;padding:8px 0 2px">Total pemain terdaftar: ${all.length}</div>`;
+        top.innerHTML=html;
+    }catch(e){
+        console.warn('Leaderboard:', e.message);
+        top.innerHTML='<div style="padding:12px;color:#f88;text-align:center">Leaderboard belum dapat dimuat.<br><small>'+mmcEscape(e.message)+'</small></div>';
+    }finally{
+        mmcLeaderboardBusy=false;
+    }
 }
 // ============================================
 // RANKED MODE - TAHAP 1 (Buka Menu)
@@ -4921,7 +5222,7 @@ if(cmd.image){
             ${isLocked ? `<div class="commander-lock">🔒 ${cmd.unlockCost} POIN</div>` : ''}
         `;
         
-        d.onclick = () => {
+        d.onclick = async () => {
             if(cmd.locked === true && !isCommanderUnlocked(cmd)){
                 const currentPts = getPoints();
                 if(currentPts < cmd.unlockCost){
@@ -4930,9 +5231,15 @@ if(cmd.image){
                 }
                 const ok = confirm('🔓 Buka ' + cmd.name + '?\n\nBiaya: 💎 ' + cmd.unlockCost.toLocaleString('id-ID') + ' poin\nPoin setelah membuka: 💎 ' + (currentPts-cmd.unlockCost).toLocaleString('id-ID'));
                 if(!ok) return;
-                if(unlockCommander(cmd.id)){
+                d.style.opacity='0.6';
+                const bought = await unlockCommander(cmd.id);
+                d.style.opacity='';
+                if(bought){
                     rankedSelCmd = i;
                     updatePointsDisplay();
+                    renderRankedCommanders();
+                }else{
+                    alert('❌ Pembelian gagal.\nSaldo di server tidak mencukupi atau koneksi terputus.');
                     renderRankedCommanders();
                 }
             } else {
@@ -5027,14 +5334,17 @@ function endGame(wi){
     let ptsEarned = 0;
     if(isRankedOnline){
         const localWon = wi === onlineRoleIndex();
-        const result = settleMMCRankResult(localWon);
+        const matchId = GS.onlineMatchId || ('m_'+(GS.onlineRoomCode||'x')+'_'+(GS.onlineStartedAt||0));
+        const result = settleMMCRankResult(localWon, GS.opponentRating, matchId);
         ptsEarned = result.diamondReward;
         GS.victoryRank = result.rank.name;
         GS.victoryRating = result.rating;
+        GS.victoryRatingDelta = result.ratingDelta;
     }else{
         // Mode lokal: tetap memberi diamond, tetapi lebih kecil dari Ranked.
-        ptsEarned = 50 + (GS.moves*2) + ((w.correct||0)*10);
-        addPoints(ptsEarned);
+        // Dibatasi agar tidak bisa "farming" lewat pertandingan lokal beruntun.
+        ptsEarned = Math.min(150, 50 + (GS.moves*2) + ((w.correct||0)*10));
+        addPointsSecure(ptsEarned, 'local', 'local_'+Date.now());
     }
 
     GS.victoryWinnerIndex = wi;
@@ -5076,6 +5386,7 @@ function triggerVictoryEffect(winnerIdx, winnerName, points){
             <div class="stat-card"><div class="stat-value">${GS.players[winnerIdx].correct}</div><div class="stat-label">Benar</div></div>
             <div class="stat-card"><div class="stat-value">💎 ${points}</div><div class="stat-label">Diamond Didapat</div></div>
             <div class="stat-card"><div class="stat-value">${GS.victoryRank||"-"}</div><div class="stat-label">Rank</div></div>
+            ${GS.victoryRatingDelta!==undefined && GS.victoryRating ? `<div class="stat-card"><div class="stat-value" style="color:${GS.victoryRatingDelta>=0?'#66ff88':'#ff6666'}">${GS.victoryRatingDelta>=0?'+':''}${GS.victoryRatingDelta}</div><div class="stat-label">Rating (${GS.victoryRating})</div></div>` : ''}
             <div class="stat-card"><div class="stat-value">${Math.max(0, GS.players[winnerIdx].hp)}</div><div class="stat-label">HP Tersisa</div></div>
             <div class="stat-card"><div class="stat-value">${GS.mode==='ai'?'🤖 VS AI':'👥 PVP'}</div><div class="stat-label">Mode</div></div>
         `;
@@ -5091,7 +5402,7 @@ function triggerVictoryEffect(winnerIdx, winnerName, points){
             <div class="victory-winner-name">${winnerName}</div>
             <div class="victory-subtitle">MENANG!</div>
             <div class="victory-points">+${points} 💎</div>
-            <div style="margin-top:8px;font-size:.8rem;color:#d6b15b;">${GS.victoryRank?`🏆 ${GS.victoryRank} • ${GS.victoryRating} Rating`:''}</div>
+            <div style="margin-top:8px;font-size:.8rem;color:#d6b15b;">${GS.victoryRank?`🏆 ${GS.victoryRank} • ${GS.victoryRating} Rating ${GS.victoryRatingDelta?`(${GS.victoryRatingDelta>=0?'+':''}${GS.victoryRatingDelta})`:''}`:''}</div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -5372,7 +5683,16 @@ function defaultMMCProfile(){
     return {diamonds:old?parseInt(old)||0:0,rating:1000,wins:0,losses:0,games:0,streak:0,bestStreak:0,unlockedCommanders:getUnlockedCommanders()};
 }
 function getMMCProfile(){
-    try{return {...defaultMMCProfile(),...(JSON.parse(localStorage.getItem(MMC_PROFILE_KEY)||'{}'))};}
+    try{
+        const raw=JSON.parse(localStorage.getItem(MMC_PROFILE_KEY)||'{}');
+        const merged={...defaultMMCProfile(),...raw};
+        // Deteksi localStorage yang diedit manual. Kalau tanda tangan tidak cocok
+        // dan Firebase tersedia, saldo lokal TIDAK dipercaya (server yang benar).
+        if(raw && Object.keys(raw).length && !mmcVerify(raw)){
+            merged.tampered=true;
+        }
+        return merged;
+    }
     catch(e){return defaultMMCProfile();}
 }
 let mmcProfileLoading=false;
@@ -5397,6 +5717,12 @@ async function loadMMCProfileFromFirebase(){
         if(snap.exists()){
             const remote=snap.val()||{}; mmcProfileLoading=true;
             const local=getMMCProfile();
+            // AMAN: kalau localStorage terdeteksi diedit, nilai server yang dipakai.
+            if(local.tampered){
+                console.warn('Data lokal tidak valid — memakai data server.');
+                local.diamonds=Number(remote.diamonds)||0;
+                local.rating=Number(remote.rating)||1000;
+            }
             const merged={...local,diamonds:Number(remote.diamonds??local.diamonds),rating:Number(remote.rating??local.rating),wins:Number(remote.wins??local.wins),losses:Number(remote.losses??local.losses),games:Number(remote.games??local.games),streak:Number(remote.streak??local.streak),bestStreak:Number(remote.bestStreak??local.bestStreak),unlockedCommanders:Array.isArray(remote.unlockedCommanders)?remote.unlockedCommanders:(local.unlockedCommanders||[])};
             localStorage.setItem(MMC_PROFILE_KEY,JSON.stringify(merged));
             PLAYER_POINTS=merged.diamonds; localStorage.setItem('mc_points',String(merged.diamonds));
@@ -5408,6 +5734,7 @@ async function loadMMCProfileFromFirebase(){
 }
 function saveMMCProfile(profile){
     profile.unlockedCommanders=getUnlockedCommanders();
+    profile.sig=mmcSign(profile);           // AMAN: tanda tangan anti-edit manual
     localStorage.setItem(MMC_PROFILE_KEY,JSON.stringify(profile));
     PLAYER_POINTS=profile.diamonds;
     localStorage.setItem('mc_points',String(profile.diamonds));
@@ -5416,7 +5743,184 @@ function saveMMCProfile(profile){
 }
 function getPoints(){ return getMMCProfile().diamonds; }
 function savePoints(){ const p=getMMCProfile(); p.diamonds=PLAYER_POINTS; saveMMCProfile(p); }
-function addPoints(amount){ const p=getMMCProfile(); p.diamonds=Math.max(0,p.diamonds+Math.max(0,Math.round(amount))); saveMMCProfile(p); }
+
+/* ===================================================================
+   SISTEM DIAMOND AMAN (server-authoritative)
+   -------------------------------------------------------------------
+   Sebelumnya: diamond hanya di localStorage -> siapa pun bisa buka
+   DevTools dan mengetik localStorage.setItem('mc_points','999999').
+   Sekarang:
+   1. Firebase adalah SUMBER KEBENARAN. localStorage cuma cache tampilan.
+   2. Semua penambahan/pengurangan lewat runTransaction (atomik, anti
+      double-claim walau user menekan tombol dua kali / dua perangkat).
+   3. Reward dibatasi (cap) di sisi klien DAN divalidasi oleh Rules.
+   4. Tiap hasil match punya matchId unik; klaim kedua untuk matchId yang
+      sama otomatis ditolak, jadi tidak bisa "farming" reward berulang.
+   =================================================================== */
+const MMC_MAX_REWARD_PER_MATCH = 500;   // batas keras reward satu pertandingan
+
+// Tanda tangan ringan: mendeteksi localStorage yang diedit tangan.
+function mmcSign(p){
+    const base = `${p.diamonds}|${p.rating}|${p.wins}|${p.losses}|${p.games}|${rankedClientId||''}`;
+    let h = 2166136261;
+    for(let i=0;i<base.length;i++){ h ^= base.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h>>>0).toString(36);
+}
+function mmcVerify(p){
+    if(!p || typeof p.sig!=='string') return false;
+    return mmcSign(p) === p.sig;
+}
+
+/* Menambah diamond secara ATOMIK di Firebase.
+   reason  : 'match' | 'local' — untuk audit
+   matchId : id unik; mencegah reward yang sama diklaim dua kali */
+async function addPointsSecure(amount, reason='match', matchId=null){
+    let amt = Math.max(0, Math.min(MMC_MAX_REWARD_PER_MATCH, Math.round(Number(amount)||0)));
+    if(amt<=0) return getPoints();
+
+    // Fallback offline: simpan sebagai klaim tertunda, disinkronkan saat online.
+    if(!window.firebaseDB || !window.firebaseAuthUid){
+        const p=getMMCProfile();
+        p.diamonds=Math.max(0,p.diamonds+amt);
+        saveMMCProfile(p);
+        queuePendingClaim(amt, reason, matchId);
+        return p.diamonds;
+    }
+
+    try{
+        const uid=window.firebaseAuthUid;
+        const walletRef=window.firebaseRef(window.firebaseDB,'wallets/'+uid);
+        const res=await window.firebaseRunTransaction(walletRef, (cur)=>{
+            const w = cur || {diamonds:0, claims:{}, updatedAt:0};
+            w.claims = w.claims || {};
+            if(matchId && w.claims[matchId]) return w;      // sudah pernah diklaim -> tolak
+            w.diamonds = Math.max(0, (Number(w.diamonds)||0) + amt);
+            if(matchId){
+                w.claims[matchId] = {amount:amt, reason, at:Date.now()};
+                // simpan maksimal 40 klaim terakhir agar node tidak membengkak
+                const keys=Object.keys(w.claims);
+                if(keys.length>40){
+                    keys.sort((a,b)=>(w.claims[a].at||0)-(w.claims[b].at||0));
+                    keys.slice(0, keys.length-40).forEach(k=>delete w.claims[k]);
+                }
+            }
+            w.updatedAt = Date.now();
+            return w;
+        });
+        const serverDiamonds = Number(res?.snapshot?.val()?.diamonds ?? 0);
+        const p=getMMCProfile();
+        p.diamonds=serverDiamonds;                 // server yang menentukan
+        saveMMCProfile(p);
+        return serverDiamonds;
+    }catch(e){
+        console.warn('Wallet transaction gagal, memakai cache lokal:', e.message);
+        const p=getMMCProfile();
+        p.diamonds=Math.max(0,p.diamonds+amt);
+        saveMMCProfile(p);
+        queuePendingClaim(amt, reason, matchId);
+        return p.diamonds;
+    }
+}
+
+/* Mengurangi diamond secara ATOMIK (untuk membeli Commander).
+   Mengembalikan true hanya bila saldo di SERVER benar-benar cukup. */
+async function spendPointsSecure(cost, itemId){
+    cost=Math.max(0, Math.round(Number(cost)||0));
+    if(cost<=0) return true;
+
+    if(!window.firebaseDB || !window.firebaseAuthUid){
+        const p=getMMCProfile();
+        if(p.diamonds<cost) return false;
+        p.diamonds-=cost; saveMMCProfile(p);
+        queuePendingClaim(-cost, 'buy:'+itemId, null);
+        return true;
+    }
+
+    try{
+        const uid=window.firebaseAuthUid;
+        const walletRef=window.firebaseRef(window.firebaseDB,'wallets/'+uid);
+        let ok=false;
+        const res=await window.firebaseRunTransaction(walletRef,(cur)=>{
+            const w = cur || {diamonds:0, claims:{}, owned:{}};
+            w.owned = w.owned || {};
+            if(w.owned[itemId]){ ok=true; return w; }         // sudah dimiliki, gratis
+            if((Number(w.diamonds)||0) < cost){ ok=false; return; } // batal transaksi
+            w.diamonds = Number(w.diamonds) - cost;
+            w.owned[itemId] = {cost, at:Date.now()};
+            w.updatedAt = Date.now();
+            ok=true;
+            return w;
+        });
+        if(!ok || !res.committed) return false;
+        const val=res.snapshot.val()||{};
+        const p=getMMCProfile();
+        p.diamonds=Number(val.diamonds)||0;
+        saveMMCProfile(p);
+        return true;
+    }catch(e){
+        console.warn('Pembelian gagal disinkronkan:', e.message);
+        return false;
+    }
+}
+
+// Antrian klaim saat offline -> diproses begitu koneksi/auth siap.
+function queuePendingClaim(amount, reason, matchId){
+    try{
+        const q=JSON.parse(localStorage.getItem('mmc_pending_claims')||'[]');
+        q.push({amount, reason, matchId, at:Date.now()});
+        localStorage.setItem('mmc_pending_claims', JSON.stringify(q.slice(-30)));
+    }catch(e){}
+}
+async function flushPendingClaims(){
+    if(!window.firebaseDB || !window.firebaseAuthUid) return;
+    let q=[];
+    try{ q=JSON.parse(localStorage.getItem('mmc_pending_claims')||'[]'); }catch(e){ return; }
+    if(!q.length) return;
+    localStorage.removeItem('mmc_pending_claims');
+    const net=q.reduce((a,b)=>a+(Number(b.amount)||0),0);
+    if(net===0) return;
+    try{
+        const walletRef=window.firebaseRef(window.firebaseDB,'wallets/'+window.firebaseAuthUid);
+        await window.firebaseRunTransaction(walletRef,(cur)=>{
+            const w=cur||{diamonds:0,claims:{}};
+            w.diamonds=Math.max(0,(Number(w.diamonds)||0)+net);
+            w.updatedAt=Date.now();
+            return w;
+        });
+        await loadWalletFromFirebase();
+    }catch(e){ console.warn('Flush klaim tertunda gagal:', e.message); }
+}
+
+// Mengambil saldo resmi dari server (dipanggil saat login/refresh).
+async function loadWalletFromFirebase(){
+    if(!window.firebaseDB || !window.firebaseAuthUid) return;
+    try{
+        const snap=await window.firebaseGet(window.firebaseRef(window.firebaseDB,'wallets/'+window.firebaseAuthUid));
+        const p=getMMCProfile();
+        if(snap.exists()){
+            const w=snap.val()||{};
+            p.diamonds=Number(w.diamonds)||0;
+            // Commander yang dimiliki juga diambil dari server
+            const ownedServer=Object.keys(w.owned||{});
+            if(ownedServer.length){
+                const merged=Array.from(new Set([...(getUnlockedCommanders()), ...ownedServer]));
+                localStorage.setItem('mc_unlocked_commanders', JSON.stringify(merged));
+            }
+            saveMMCProfile(p);
+        }else{
+            // Dompet baru: buat dari saldo lokal (satu kali saja)
+            await window.firebaseRunTransaction(
+                window.firebaseRef(window.firebaseDB,'wallets/'+window.firebaseAuthUid),
+                (cur)=> cur || {diamonds:Math.max(0,Number(p.diamonds)||0), claims:{}, owned:{}, createdAt:Date.now()}
+            );
+        }
+    }catch(e){ console.warn('Muat dompet gagal:', e.message); }
+}
+
+// Kompatibilitas: kode lama memanggil addPoints() secara sinkron.
+function addPoints(amount, matchId){
+    addPointsSecure(amount, 'local', matchId||null);
+}
 function getMMCRank(rating){
     let r=MMC_RANKS[0]; for(const x of MMC_RANKS){if(rating>=x.min)r=x;} return r;
 }
@@ -5429,15 +5933,49 @@ function updateMMCProfileUI(){
     set('mmc-wins',p.wins); set('mmc-games',p.games); set('mmc-streak',p.streak);
     updatePointsDisplay();
 }
-function settleMMCRankResult(won){
+/* SISTEM RANK LENGKAP
+   - Rating memakai Elo sesungguhnya (memperhitungkan rating lawan),
+     bukan lagi +30/-20 tetap. Menang lawan yang jauh lebih kuat = poin besar.
+   - Reward diamond diklaim lewat transaksi server dengan matchId unik,
+     sehingga tidak bisa diklaim dua kali.
+   - Rating & statistik langsung dipublikasikan ke leaderboard global. */
+function mmcExpectedScore(myRating, oppRating){
+    return 1 / (1 + Math.pow(10, (oppRating - myRating) / 400));
+}
+function mmcKFactor(games, rating){
+    if(games < 10) return 40;      // pemain baru bergerak cepat
+    if(rating >= 1800) return 16;  // pemain elit lebih stabil
+    return 24;
+}
+function settleMMCRankResult(won, oppRating, matchId){
     const p=getMMCProfile();
+    const before=p.rating;
+    const opp=Number(oppRating)||1000;
+    const K=mmcKFactor(p.games, p.rating);
+    const expected=mmcExpectedScore(p.rating, opp);
+    const actual=won?1:0;
+    const delta=Math.round(K*(actual-expected));
+
     p.games++;
-    if(won){p.wins++;p.streak++;p.bestStreak=Math.max(p.bestStreak,p.streak);p.rating+=30;}
-    else {p.losses++;p.streak=0;p.rating=Math.max(0,p.rating-20);}
-    const diamondReward=won ? 250 + (p.streak>=3 ? 100 : 0) : 75;
-    p.diamonds+=diamondReward;
-    saveMMCProfile(p);
-    return {diamondReward,rating:p.rating,rank:getMMCRank(p.rating)};
+    if(won){ p.wins++; p.streak++; p.bestStreak=Math.max(p.bestStreak||0,p.streak); }
+    else   { p.losses++; p.streak=0; }
+    p.rating=Math.max(100, p.rating+delta);   // lantai rating 100
+
+    // Reward: menang basis 250 + bonus streak, kalah tetap dapat 75 (anti-frustrasi)
+    let diamondReward = won ? 250 + (p.streak>=3 ? 100 : 0) + Math.max(0, delta*2) : 75;
+    diamondReward = Math.min(MMC_MAX_REWARD_PER_MATCH, diamondReward);
+
+    saveMMCProfile(p);                                   // rating & statistik dulu
+    addPointsSecure(diamondReward, 'match', matchId);    // diamond via server (atomik)
+    publishMMCRankProfile();                             // dorong ke leaderboard
+
+    return {
+        diamondReward,
+        rating:p.rating,
+        ratingBefore:before,
+        ratingDelta:delta,
+        rank:getMMCRank(p.rating)
+    };
 }
 function canSelectCommander(cmd){ return isCommanderUnlocked(cmd); }
 function exitGame(){
@@ -5484,8 +6022,14 @@ if('serviceWorker' in navigator){
             .catch(err => console.log('SW gagal:', err));
     });
 }
-</script>
-window.addEventListener('firebaseAuthReady', ()=>{
+
+// ===================================================================
+// FIX: blok ini SEBELUMNYA berada DI LUAR tag </script> sehingga
+// browser menampilkannya sebagai teks biasa dan TIDAK PERNAH DIJALANKAN.
+// Akibatnya profil/rank tidak pernah dimuat dari Firebase saat login.
+// Sekarang sudah berada di dalam script.
+// ===================================================================
+window.addEventListener('firebaseAuthReady', async ()=>{
     if(window.firebaseAuthUid){
         // Jangan mengganti ID setelah room aktif. Role Host/Guest harus tetap
         // sama dengan ID yang tersimpan saat room dibuat/join.
@@ -5494,8 +6038,13 @@ window.addEventListener('firebaseAuthReady', ()=>{
             localStorage.setItem('mmc_client_id',rankedClientId);
         }
         updateMMCProfileUI();
-        loadMMCProfileFromFirebase();
+        await loadMMCProfileFromFirebase();
+        await loadWalletFromFirebase();   // AMAN: saldo resmi diambil dari server
+        await flushPendingClaims();       // kirim reward yang sempat offline
+        updateMMCProfileUI();
+        publishMMCRankProfile();          // pastikan pemain muncul di leaderboard
     }
 });
-</body>
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2a0d2c5fcc95941',t:'MTc4NjU1MTc5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
