@@ -965,7 +965,12 @@
         .question-overlay.active {
             display: flex;
             animation: fadeIn 0.3s ease;
+            isolation: isolate;
+            contain: paint;
         }
+        .question-overlay .timer-bar,
+        .question-overlay .question-box { transform: translateZ(0); }
+        #game-canvas { display:block; position:relative; z-index:0; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         .question-box {
@@ -2696,7 +2701,7 @@ function initThreeJS(){
     const frameGeo = new THREE.BoxGeometry(BOARD_SIZE*TILE_SIZE + 1.4, 0.5, BOARD_SIZE*TILE_SIZE + 1.4);
     const frameMat=new THREE.MeshStandardMaterial({color:0x2a1a0a, metalness:0.6, roughness:0.3});
     const frame=new THREE.Mesh(frameGeo, frameMat);
-    frame.position.y=-0.28; frame.receiveShadow=true;
+    frame.position.y=-0.34; frame.receiveShadow=true;
     scene.add(frame);
 
     // Tiles
@@ -2756,6 +2761,9 @@ function onResize(){
 function cleanupGame(){
     if(animId) cancelAnimationFrame(animId);
     if(GS.qTimer) clearInterval(GS.qTimer);
+    stopLocalTimerVisual();
+    stopAITimer();
+    stopOnlineDisplayTimer();
     const c=document.getElementById('game-canvas');
     if(c) c.removeEventListener('click', onBoardClick);
     window.removeEventListener('resize', onResize);
@@ -3263,8 +3271,12 @@ function localTryMove(tr, tc){
             GS.moves++;
             GS.phase='gameover';
             GS.gameOver=true;
+            GS.phase='gameover';
             renderPieces3D();
             updateAbilityButtons();
+            // Mode lokal/AI harus langsung menyelesaikan pertandingan.
+            // Mode online menunggu Host mengirim state FINAL terlebih dahulu.
+            if(!GS.online) endGame(piece.player);
             return;
         }
         target.captured = true;
@@ -3331,6 +3343,8 @@ function generateQuestion(){
     if(GS.gameOver) return;
     questionDeadlineAt=0;
     stopOnlineDisplayTimer();
+    stopLocalTimerVisual();
+    stopAITimer();
 
     // ONLINE: setiap soal baru selalu dimulai sebagai fase QUESTION.
     // Tanpa ini, setelah fase SYNCING host membuat soal dan timer lokal
@@ -3409,36 +3423,65 @@ function generateQuestion(){
     if(timerFill) timerFill.style.width = '100%';
 
     if(GS.qTimer) clearInterval(GS.qTimer);
-    GS.qTimer = setInterval(() => {
-        const nowForTimer = Date.now() + (GS.online ? firebaseServerOffset : 0);
-        const remainingMs = Math.max(0, questionDeadlineAt - nowForTimer);
-        GS.timerVal = Math.ceil(remainingMs/1000);
-        const tf = document.getElementById('timer-fill');
-        if(tf) tf.style.width = Math.max(0,(remainingMs/(GS.timerMax*1000))*100)+'%';
+    // LOGIC TIMER: 100ms hanya untuk keputusan/game state.
+    // TAMPILAN BAR dihitung dari deadline dengan requestAnimationFrame agar
+    // tidak tersendat di HP dan tidak pernah mengubah kecepatan waktu sebenarnya.
+    const paintQuestionTimer=()=>{
+        if(GS.phase!=='question' || GS.gameOver || !questionDeadlineAt){
+            localTimerRAF=0;
+            return;
+        }
+        const now=Date.now() + (GS.online ? firebaseServerOffset : 0);
+        const remainingMs=Math.max(0, questionDeadlineAt-now);
+        GS.timerVal=Math.ceil(remainingMs/1000);
+        const tf=document.getElementById('timer-fill');
+        if(tf) tf.style.width=Math.max(0,Math.min(100,(remainingMs/(GS.timerMax*1000))*100))+'%';
+        if(remainingMs>0) localTimerRAF=requestAnimationFrame(paintQuestionTimer);
+        else localTimerRAF=0;
+    };
+    localTimerRAF=requestAnimationFrame(paintQuestionTimer);
 
-        if(remainingMs <= 0){
+    GS.qTimer=setInterval(() => {
+        if(GS.phase!=='question' || GS.gameOver){
             clearInterval(GS.qTimer); GS.qTimer=null;
+            return;
+        }
+        const nowForTimer=Date.now() + (GS.online ? firebaseServerOffset : 0);
+        const remainingMs=Math.max(0,questionDeadlineAt-nowForTimer);
+        GS.timerVal=Math.ceil(remainingMs/1000);
+
+        if(remainingMs<=0){
+            clearInterval(GS.qTimer); GS.qTimer=null;
+            stopLocalTimerVisual();
+            stopAITimer();
             GS.timerVal=0;
             GS.players[0].hp -= 5; GS.players[1].hp -= 5;
             updateUI(); hideQ(); showResult('⏰','#ff8800');
-            if(GS.players[0].hp <= 0){ endGame(1); if(GS.online && GS.onlineRole==='host') publishOnlineState({phase:'gameover'}); return; }
-            if(GS.players[1].hp <= 0){ endGame(0); if(GS.online && GS.onlineRole==='host') publishOnlineState({phase:'gameover'}); return; }
+            if(GS.players[0].hp<=0){ endGame(1); if(GS.online && GS.onlineRole==='host') publishOnlineState({phase:'gameover'}); return; }
+            if(GS.players[1].hp<=0){ endGame(0); if(GS.online && GS.onlineRole==='host') publishOnlineState({phase:'gameover'}); return; }
             if(GS.online && GS.onlineRole==='host') publishOnlineState();
-            setTimeout(() => { if(!GS.gameOver) generateQuestion(); }, 1500);
-            return;
+            setTimeout(()=>{ if(!GS.gameOver) generateQuestion(); },1500);
         }
+    },100);
 
-        if(GS.mode === 'ai' && GS.timerVal < 75 && GS.timerVal > 15 && GS.answerer === -1){
-            if(Math.random() < 0.018) aiAnswer();
-        }
-    }, 100);
+    // AI menjawab secara terjadwal, bukan peluang acak setiap 100ms.
+    // Ini menjamin AI selalu mendapat kesempatan menjawab sebelum waktu habis.
+    if(GS.mode==='ai' && GS.answerer===-1){
+        const aiDelay=4500 + Math.floor(Math.random()*2500); // 4.5–7 detik
+        aiAnswerTimer=setTimeout(()=>{
+            aiAnswerTimer=null;
+            if(!GS.gameOver && GS.phase==='question' && GS.answerer===-1) aiAnswer();
+        },aiDelay);
+    }
 
     if(GS.online && GS.onlineRole==='host' && !GS.onlineApplying) publishOnlineState();
-}
+
 function rnd(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
 
 function aiAnswer(){
-    if(GS.answerer !== -1 || GS.aiBusy) return;
+    if(GS.answerer !== -1 || GS.aiBusy || GS.gameOver) return;
+    stopAITimer();
+    stopLocalTimerVisual();
     GS.aiBusy=true;
     clearInterval(GS.qTimer); hideQ();
     
@@ -3480,11 +3523,14 @@ function aiMove(){
             if(target){
                 target.captured = true;
                 if(target.type === PT.KING){
+                    target.captured=true;
                     doMove(p, chosen.row, chosen.col);
                     renderPieces3D();
                     updateAbilityButtons();
-                    GS.gameOver = true; 
-                    endGame(1); 
+                    GS.gameOver=true;
+                    GS.phase='gameover';
+                    stopAITimer();
+                    endGame(1);
                     return;
                 }
             }
@@ -3528,6 +3574,8 @@ function numpadDelete(){
 }
 function localNumpadOK(){
     if(!GS.currentAnswer) return;
+    stopAITimer();
+    stopLocalTimerVisual();
     clearInterval(GS.qTimer);
     const ua = parseInt(GS.currentAnswer);
     const correct = ua === GS.currentQuestion.answer;
@@ -3761,27 +3809,15 @@ function applyOnlineState(st){
     clearHL();
     updateUI();
     updateAbilityButtons();
-    if(renderer && piecesChanged){
+    if(renderer && (piecesChanged || GS.onlineRole==='guest')){
         try{
-            renderer.setScissorTest(false);
-            renderer.clear(true,true,true);
             onResize();
             renderer.render(scene,camera);
         }catch(e){}
-    }
-    if(renderer && (piecesChanged || GS.onlineRole==='guest')){
         requestAnimationFrame(()=>{
             try{
                 onResize();
-                renderer.clear(true,true,true);
                 renderer.render(scene,camera);
-                requestAnimationFrame(()=>{
-                    try{
-                        onResize();
-                        renderer.clear(true,true,true);
-                        renderer.render(scene,camera);
-                    }catch(e){}
-                });
             }catch(e){}
         });
     }
@@ -4022,10 +4058,19 @@ let onlineRoomLobbyActive = false;
 let onlineRoomLobbyMatchId = 0;
 let onlineDisplayTimer = null;
 let onlineTimerToken = '';
+let localTimerRAF = 0;
+let aiAnswerTimer = null;
 
 function stopOnlineDisplayTimer(){
     if(onlineDisplayTimer){ clearInterval(onlineDisplayTimer); onlineDisplayTimer=null; }
 }
+function stopLocalTimerVisual(){
+    if(localTimerRAF){ cancelAnimationFrame(localTimerRAF); localTimerRAF=0; }
+}
+function stopAITimer(){
+    if(aiAnswerTimer){ clearTimeout(aiAnswerTimer); aiAnswerTimer=null; }
+}
+
 function startOnlineDisplayTimer(){
     if(GS.onlineRole==='host') return;
     if(GS.phase!=='question' || !GS.currentQuestion || GS.gameOver) return;
@@ -4938,7 +4983,11 @@ function shareRoomWA(){
 // ========================================
 function endGame(wi){
     GS.gameOver = true;
+    GS.phase='gameover';
     if(GS.qTimer) clearInterval(GS.qTimer);
+    stopLocalTimerVisual();
+    stopAITimer();
+    stopOnlineDisplayTimer();
     hideQ(); hidePSMsg(); clearHL();
     // Ability panel (termasuk SOUL Necromancer) harus hilang saat pertandingan selesai.
     const abilityPanel = document.getElementById('ability-panel');
