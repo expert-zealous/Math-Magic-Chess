@@ -3645,6 +3645,7 @@ function showOnlineQuestion(q){
     const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent='⚡ Keduanya boleh menjawab!';
     const qo=document.getElementById('question-overlay'); if(qo) qo.classList.add('active');
     hidePSMsg();
+    startOnlineDisplayTimer();
 }
 
 function applyOnlineState(st){
@@ -3654,8 +3655,12 @@ function applyOnlineState(st){
     if(incomingSeq) onlineLastAppliedStateSeq=incomingSeq;
     GS.onlineApplying=true;
     GS.phase=st.phase || 'question';
-    // Timer hanya boleh berjalan pada soal aktif. Fase move/syncing wajib menghentikannya.
-    if(GS.phase!=='question' && GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
+    // Timer hanya boleh berjalan pada soal aktif. Fase move/syncing wajib menghentikan
+    // timer authoritative host dan timer visual lokal guest.
+    if(GS.phase!=='question'){
+        if(GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
+        stopOnlineDisplayTimer();
+    }
     GS.currentTurn=st.currentTurn ?? 0;
     GS.answerer=st.answerer ?? -1;
     GS.moves=st.moves || 0;
@@ -3708,6 +3713,7 @@ function applyOnlineState(st){
     } else {
         hideQ(); hidePSMsg();
         if(GS.phase==='gameover' && GS.gameOver){
+            stopOnlineDisplayTimer();
             // State final sudah berisi posisi capture terakhir. Render sekali lagi
             // sebelum layar kemenangan ditampilkan di perangkat lawan.
             if(renderer && piecesChanged) renderPieces3D();
@@ -3909,6 +3915,44 @@ let onlineLastPiecesKey = '';
 let onlineStateSeq = 0;
 let onlineLastAppliedStateSeq = 0;
 let onlinePendingMoveActionId = null;
+let onlineDisplayTimer = null;
+
+function stopOnlineDisplayTimer(){
+    if(onlineDisplayTimer){
+        clearInterval(onlineDisplayTimer);
+        onlineDisplayTimer=null;
+    }
+}
+
+function startOnlineDisplayTimer(){
+    stopOnlineDisplayTimer();
+    if(GS.phase!=='question' || !GS.currentQuestion || GS.gameOver) return;
+
+    // Timer visual lokal di kedua perangkat. Host tetap menjadi wasit.
+    let remaining = Number(GS.timerVal || GS.timerMax || 100);
+    const max = Math.max(1, Number(GS.timerMax || 100));
+
+    const paint = ()=>{
+        const fill=document.getElementById('timer-fill');
+        if(fill){
+            const pct=Math.max(0,Math.min(100,(remaining/max)*100));
+            fill.style.width=pct+'%';
+        }
+        GS.timerVal=remaining;
+    };
+    paint();
+
+    onlineDisplayTimer=setInterval(()=>{
+        if(GS.phase!=='question' || GS.gameOver){
+            stopOnlineDisplayTimer();
+            return;
+        }
+        remaining=Math.max(0,remaining-1);
+        paint();
+        if(remaining<=0) stopOnlineDisplayTimer();
+    },1000);
+}
+
 function initOnlineGameFromRoom(room){
     if(!room?.host || !room?.guest || onlineInitInProgress) return;
     const myId = window.firebaseAuthUid || rankedClientId;
@@ -4470,10 +4514,12 @@ async function rankedReady(){
                 const latest=await window.firebaseGet(rankedRoomRef);
                 startRoom=latest.val() || {...room,status:'starting'};
             }else{
-                // Guest tidak menulis status. Tunggu Host memulai.
+                // Guest tidak menulis status (Rules keamanan tetap ketat).
+                // Klik MULAI di HP berarti "saya siap"; papan akan terbuka
+                // segera setelah Host menekan MULAI.
                 document.getElementById('ranked-ready-btn').style.display='none';
-                document.getElementById('waiting-title').textContent='⏳ MENUNGGU HOST MEMULAI...';
-                document.getElementById('waiting-info').textContent='Host sedang memulai pertandingan.';
+                document.getElementById('waiting-title').textContent='⏳ SIAP — MENUNGGU HOST';
+                document.getElementById('waiting-info').textContent='Anda sudah siap. Host menekan MULAI untuk membuka papan di kedua perangkat.';
                 watchOnlineRoom();
                 return;
             }
@@ -4953,7 +4999,58 @@ function playVictorySound(){
     } catch(e){}
 }
 
-function rematch(){ startGame(); }
+
+async function rematch(){
+    if(!GS.online){
+        startGame();
+        return;
+    }
+
+    // Rematch online: jangan meninggalkan GS.online=true dengan state game lama.
+    // Host membuat state pertandingan baru; Guest cukup menunggu state tersebut.
+    stopOnlineDisplayTimer();
+    if(GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
+    onlineAnswerAttempts=new Set();
+    onlinePendingMoveActionId=null;
+    onlineQuestionToken='';
+    onlineLastPiecesKey='';
+    onlineLastAppliedStateSeq=0;
+    onlineStateSeq=0;
+    GS.victoryShown=false;
+    GS.victoryWinnerIndex=-1;
+    GS.victoryPoints=0;
+    GS.gameOver=false;
+    GS.phase='question';
+
+    // Hapus overlay kemenangan lama jika masih ada.
+    const oldVictory=document.getElementById('victory-overlay');
+    if(oldVictory) oldVictory.remove();
+
+    // Bangun papan baru di kedua client. Jangan membuat soal lokal.
+    startGame();
+
+    if(GS.onlineRole==='host'){
+        try{
+            // Pastikan room tetap berada pada status bermain.
+            await window.firebaseUpdate(rankedRoomRef,{
+                status:'playing',
+                lastUpdate:window.firebaseServerTimestamp()
+            });
+
+            // Host adalah satu-satunya pembuat soal authoritative.
+            generateQuestion();
+            await publishOnlineState({phase:'question',gameOver:false});
+        }catch(e){
+            console.error('Rematch online:',e);
+            alert('❌ Gagal memulai pertandingan ulang: '+(e?.message||e));
+        }
+    }else{
+        const ti=document.getElementById('turn-indicator');
+        if(ti) ti.textContent='⏳ Menunggu Host memulai pertandingan ulang...';
+        watchOnlineRoom();
+    }
+}
+
 
 // ========================================
 // HISTORY
