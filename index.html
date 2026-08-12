@@ -1100,7 +1100,7 @@
             height: 100%;
             background: linear-gradient(90deg, #ff4444, #ffd700, #44ff44);
             border-radius: 3px;
-            transition: width 0.1s linear;
+            transition: none;
         }
 
         .race-text {
@@ -2100,6 +2100,11 @@
         <!-- Panel Room -->
         <div id="ranked-room-panel" class="ranked-panel" style="display:none;">
             <h3 class="ranked-panel-title">🔑 ROOM PRIBADI</h3>
+            <div id="reuse-room-panel" style="display:none;margin-bottom:18px;padding:14px;border:1px solid rgba(214,177,91,.55);border-radius:14px;background:rgba(214,177,91,.08);text-align:center;">
+                <div style="font-weight:800;color:#ffd86b;margin-bottom:5px;">♻️ ROOM SEBELUMNYA</div>
+                <div style="font-size:.82rem;color:#ddd;margin-bottom:10px;">Kode: <b id="reuse-room-code">------</b></div>
+                <button id="reuse-room-btn" class="start-btn" onclick="reusePreviousRoom()" style="width:100%;padding:12px;">♻️ GUNAKAN ROOM INI</button>
+            </div>
             
             <div style="display:flex; gap:15px; margin-bottom:20px;">
                 <button class="ranked-mode-btn" onclick="createRoom()" style="flex:1;">
@@ -3368,53 +3373,47 @@ function generateQuestion(){
     
     GS.timerVal = timerMax;
     GS.timerMax = timerMax;
-    
-    // Reset visual timer bar
+
+    // ONLINE: satu deadline absolut berbasis jam server Firebase.
+    // Kedua perangkat menggambar bar dari deadline yang sama sehingga
+    // tidak ada lagi timer cepat di laptop dan lambat di HP.
+    if(GS.online && GS.onlineRole==='host'){
+        questionDeadlineAt = Date.now() + firebaseServerOffset + (timerMax*1000);
+    }else if(!GS.online){
+        questionDeadlineAt = 0;
+    }
+
     const timerFill = document.getElementById('timer-fill');
     if(timerFill) timerFill.style.width = '100%';
 
-    // Mulai countdown timer
+    if(GS.qTimer) clearInterval(GS.qTimer);
     GS.qTimer = setInterval(() => {
-        GS.timerVal -= 1;
-        
-        // Update visual timer bar
+        const remainingMs = questionDeadlineAt
+            ? Math.max(0, questionDeadlineAt - (Date.now()+firebaseServerOffset))
+            : Math.max(0, GS.timerVal*1000);
+        GS.timerVal = Math.ceil(remainingMs/1000);
         const tf = document.getElementById('timer-fill');
-        if(tf){
-            const pct = (GS.timerVal / GS.timerMax) * 100;
-            tf.style.width = Math.max(0, pct) + '%';
-        }
+        if(tf) tf.style.width = Math.max(0,(remainingMs/(GS.timerMax*1000))*100)+'%';
 
-        // Cek waktu habis
-        if(GS.timerVal <= 0){
-            clearInterval(GS.qTimer);
-            GS.qTimer = null;
-            
-            GS.players[0].hp -= 5;
-            GS.players[1].hp -= 5;
-            updateUI();
-            hideQ();
-            showResult('⏰','#ff8800');
-            
+        if(remainingMs <= 0){
+            clearInterval(GS.qTimer); GS.qTimer=null;
+            GS.timerVal=0;
+            GS.players[0].hp -= 5; GS.players[1].hp -= 5;
+            updateUI(); hideQ(); showResult('⏰','#ff8800');
             if(GS.players[0].hp <= 0){ endGame(1); if(GS.online && GS.onlineRole==='host') publishOnlineState({phase:'gameover'}); return; }
             if(GS.players[1].hp <= 0){ endGame(0); if(GS.online && GS.onlineRole==='host') publishOnlineState({phase:'gameover'}); return; }
             if(GS.online && GS.onlineRole==='host') publishOnlineState();
-            setTimeout(() => {
-                if(!GS.gameOver) generateQuestion();
-            }, 1500);
+            setTimeout(() => { if(!GS.gameOver) generateQuestion(); }, 1500);
             return;
         }
 
-        // AI otomatis menjawab
         if(GS.mode === 'ai' && GS.timerVal < 75 && GS.timerVal > 15 && GS.answerer === -1){
             if(Math.random() < 0.018) aiAnswer();
         }
     }, 100);
 
-    if(GS.online && GS.onlineRole==='host' && !GS.onlineApplying){
-        publishOnlineState();
-    }
+    if(GS.online && GS.onlineRole==='host' && !GS.onlineApplying) publishOnlineState();
 }
-
 function rnd(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
 
 function aiAnswer(){
@@ -3622,6 +3621,7 @@ function serializeOnlineState(){
         currentQuestion: GS.currentQuestion ? {text:GS.currentQuestion.text, answer:GS.currentQuestion.answer} : null,
         timerMax: GS.timerMax || 100,
         timerVal: GS.timerVal || 100,
+        questionDeadlineAt: questionDeadlineAt || 0,
         questionToken: onlineQuestionToken || '',
         players: GS.players.map(p => ({name:p.name, hp:p.hp, maxHp:p.maxHp, correct:p.correct||0, wrong:p.wrong||0, commanderId:p.commander?.id||null})),
         pieces: GS.pieces.map(p => ({id:p.id,type:p.type,row:p.row,col:p.col,player:p.player,captured:!!p.captured,hasMoved:!!p.hasMoved}))
@@ -3660,6 +3660,7 @@ function applyOnlineState(st){
     // Timer hanya boleh berjalan pada soal aktif. Fase move/syncing wajib menghentikan
     // timer authoritative host dan timer visual lokal guest.
     if(GS.phase!=='question'){
+        questionDeadlineAt=0;
         if(GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
         stopOnlineDisplayTimer();
     }
@@ -3672,6 +3673,7 @@ function applyOnlineState(st){
     GS.currentQuestion=st.currentQuestion || null;
     GS.timerMax=st.timerMax || 100;
     GS.timerVal=st.timerVal ?? GS.timerMax;
+    questionDeadlineAt=Number(st.questionDeadlineAt||0);
     const incomingQuestionToken=st.questionToken || '';
     const questionChanged=incomingQuestionToken !== onlineQuestionToken;
     onlineQuestionToken=incomingQuestionToken;
@@ -3749,7 +3751,7 @@ function submitOnlineAnswer(value){
     if(!GS.online || GS.onlineRole===null || !rankedRoomRef) return;
     const role=onlineRoleIndex();
     if(GS.phase!=='question' || !GS.currentQuestion) return;
-    const action={type:'answer',player:role,value:String(value),clientId:window.firebaseAuthUid||rankedClientId,actionId:Date.now()+'_'+Math.random().toString(36).slice(2)};
+    const action={type:'answer',matchId:onlineMatchId,player:role,value:String(value),clientId:window.firebaseAuthUid||rankedClientId,actionId:Date.now()+'_'+Math.random().toString(36).slice(2)};
     const actionRef=window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions/${action.actionId}`);
     window.firebaseSet(actionRef,action)
       .then(()=>{
@@ -3770,7 +3772,7 @@ async function submitOnlineMove(tr,tc){
     if(!valid) return;
 
     const actionId=Date.now()+'_'+Math.random().toString(36).slice(2);
-    const action={type:'move',player:role,pieceId:piece.id,toRow:tr,toCol:tc,clientId:window.firebaseAuthUid||rankedClientId,actionId};
+    const action={type:'move',matchId:onlineMatchId,player:role,pieceId:piece.id,toRow:tr,toCol:tc,clientId:window.firebaseAuthUid||rankedClientId,actionId};
 
     // OPTIMISTIC MOVE: tampilkan perpindahan langsung di perangkat yang mengklik.
     // Host tetap menjadi wasit dan akan mengirim state resmi sesudahnya.
@@ -3822,10 +3824,8 @@ function numpadOK(){
 async function processOnlineAction(action){
     if(!GS.online || GS.onlineRole!=='host' || !action) return;
     try{
-        if(action.type==='rematch'){
-            await startOnlineRematchAsHost();
-            return;
-        }
+        if(action.matchId != null && Number(action.matchId)!==Number(onlineMatchId)) return;
+        if(!action.matchId) return; // Abaikan action lama dari pertandingan sebelumnya.
         if(GS.gameOver) return;
         if(action.type==='answer'){
             // MODE REBUTAN: kedua pemain boleh menjawab. Host menjadi wasit.
@@ -3926,6 +3926,10 @@ let onlineStateSeq = 0;
 let onlineLastAppliedStateSeq = 0;
 let onlinePendingMoveActionId = null;
 let onlineMatchId = 1;
+let firebaseServerOffset = 0;
+let questionDeadlineAt = 0;
+let onlineRoomLobbyActive = false;
+let onlineRoomLobbyMatchId = 0;
 let onlineDisplayTimer = null;
 let onlineTimerToken = '';
 
@@ -3933,23 +3937,36 @@ function stopOnlineDisplayTimer(){
     if(onlineDisplayTimer){ clearInterval(onlineDisplayTimer); onlineDisplayTimer=null; }
 }
 function startOnlineDisplayTimer(){
-    if(GS.onlineRole==='host') return;
+    if(GS.onlineRole==='host') return; // Host uses the same deadline-authoritative timer.
     if(GS.phase!=='question' || !GS.currentQuestion || GS.gameOver) return;
     const token=onlineQuestionToken || '';
     if(onlineDisplayTimer && onlineTimerToken===token) return;
-    stopOnlineDisplayTimer(); onlineTimerToken=token;
-    let remaining=Math.max(0,Number(GS.timerVal || GS.timerMax || 100));
-    const max=Math.max(1,Number(GS.timerMax || 100));
-    const paint=()=>{ const fill=document.getElementById('timer-fill'); if(fill) fill.style.width=Math.max(0,Math.min(100,(remaining/max)*100))+'%'; };
-    paint();
-    onlineDisplayTimer=setInterval(()=>{
-        if(GS.phase!=='question' || GS.gameOver || onlineTimerToken!==token){ stopOnlineDisplayTimer(); return; }
-        remaining=Math.max(0,remaining-1); paint();
+    stopOnlineDisplayTimer();
+    onlineTimerToken=token;
+    const deadline=Number(questionDeadlineAt||0);
+    const maxMs=Math.max(1000,Number(GS.timerMax||100)*1000);
+    const paint=()=>{
+        const remaining=deadline ? Math.max(0,deadline-(Date.now()+firebaseServerOffset)) : Math.max(0,Number(GS.timerVal||GS.timerMax||100))*1000;
+        const fill=document.getElementById('timer-fill');
+        if(fill) fill.style.width=Math.max(0,Math.min(100,(remaining/maxMs)*100))+'%';
+        GS.timerVal=Math.ceil(remaining/1000);
         if(remaining<=0) stopOnlineDisplayTimer();
-    },1000);
+    };
+    paint();
+    onlineDisplayTimer=setInterval(paint,100);
+}
+
+async function syncFirebaseClock(){
+    try{
+        if(window.firebaseDB && window.firebaseGet && window.firebaseRef){
+            const s=await window.firebaseGet(window.firebaseRef(window.firebaseDB,'.info/serverTimeOffset'));
+            firebaseServerOffset=Number(s.val()||0);
+        }
+    }catch(e){ console.warn('Server clock sync:',e.message); }
 }
 
 function initOnlineGameFromRoom(room){
+    onlineRoomLobbyActive=false;
     if(!room?.host || !room?.guest || onlineInitInProgress) return;
     const myId = window.firebaseAuthUid || rankedClientId;
     const isHost = String(room.host.id) === String(myId);
@@ -3958,6 +3975,7 @@ function initOnlineGameFromRoom(room){
     GS.online=true;
     GS.onlineRole=isHost?'host':'guest';
     GS.onlineRoomCode=rankedRoomCode;
+    onlineMatchId=Number(room.game?.matchId||room.matchId||1)||1;
     GS.mode='pvp';
     selCmd[0]=room.host.commanderIndex ?? 0;
     selCmd[1]=room.guest.commanderIndex ?? 0;
@@ -4398,6 +4416,7 @@ async function waitForFirebaseAuth(timeoutMs=8000){
 }
 
 async function createRoom(){
+    onlineRoomLobbyActive=false;
     try {
     if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
     await waitForFirebaseAuth();
@@ -4413,6 +4432,7 @@ async function createRoom(){
     rankedRoomCode=code;
     window.onlineProcessedActionIds=new Set();
     rankedRoomRef=window.firebaseRef(window.firebaseDB,'rankedRooms/'+code);
+    onlineMatchId=1;
     await window.firebaseSet(rankedRoomRef,{
         status:'waiting',
         host:player,
@@ -4422,6 +4442,7 @@ async function createRoom(){
     });
     await window.firebaseOnDisconnect(rankedRoomRef).update({status:'abandoned',lastHostDisconnect:window.firebaseServerTimestamp(),expiresAt:Date.now()+90000});
     await setupRoomPresence('host');
+    await syncFirebaseClock();
     await scheduleRoomCleanup();
     document.getElementById('room-code-value').textContent=code;
     document.getElementById('ranked-ready-btn').style.display='none';
@@ -4448,6 +4469,7 @@ async function createRoom(){
 }
 
 async function joinRoom(){
+    onlineRoomLobbyActive=false;
     try {
     if(!window.firebaseDB){ alert('⏳ Firebase belum siap. Coba refresh halaman.'); return; }
     await waitForFirebaseAuth();
@@ -4463,8 +4485,9 @@ async function joinRoom(){
     if(room.guest){ alert('❌ Room sudah penuh.'); return; }
     const guest=rankedPlayerData();
     await window.firebaseUpdate(rr,{guest,status:'ready',lastUpdate:window.firebaseServerTimestamp()});
-    rankedRoomCode=code; window.onlineProcessedActionIds=new Set(); rankedRoomRef=rr;
+    rankedRoomCode=code; onlineMatchId=Number(room.matchId||room.game?.matchId||1)||1; window.onlineProcessedActionIds=new Set(); rankedRoomRef=rr;
     await setupRoomPresence('guest');
+    await syncFirebaseClock();
     document.getElementById('room-code-value').textContent=code;
     document.getElementById('ranked-ready-btn').style.display='inline-block';
     rankedSetWaiting('⚔️ BERHASIL MASUK ROOM','Anda terhubung dengan '+(room.host?.name||'Host')+'.',true);
@@ -4484,9 +4507,11 @@ async function joinRoom(){
 }
 
 async function rankedReady(){
+    onlineRoomLobbyActive=false;
     if(!rankedRoomRef) return;
     await waitForFirebaseAuth();
     try{
+        await syncFirebaseClock();
         const snap=await window.firebaseGet(rankedRoomRef);
         const room=snap.val();
         if(!room?.host || !room?.guest){
@@ -4757,6 +4782,7 @@ if(cmd.image){
 }
 
 function backToRankedLogin(){
+    const reuse=document.getElementById('reuse-room-panel'); if(reuse) reuse.style.display='none';
     document.getElementById('ranked-login-panel').style.display = 'block';
     document.getElementById('ranked-room-panel').style.display = 'none';
     document.getElementById('join-room-form').style.display = 'none';
@@ -5005,37 +5031,98 @@ function playVictorySound(){
 }
 
 
-async function startOnlineRematchAsHost(){
-    if(!GS.online || GS.onlineRole!=='host' || !rankedRoomRef) return;
-    clearVictoryCinematic(); stopOnlineDisplayTimer(); onlineTimerToken='';
+function showOnlineRoomReuseMenu(){
+    clearVictoryCinematic();
+    onlineRoomLobbyActive=true;
+    onlineRoomLobbyMatchId=Number(onlineMatchId||0);
+    stopOnlineDisplayTimer();
     if(GS.qTimer){ clearInterval(GS.qTimer); GS.qTimer=null; }
-    onlineAnswerAttempts=new Set(); onlinePendingMoveActionId=null;
-    onlineQuestionToken=''; onlineLastPiecesKey=''; onlineLastAppliedStateSeq=0; onlineStateSeq=0;
-    onlineMatchId=Math.max(1,Number(onlineMatchId||1)+1);
-    GS.victoryShown=false; GS.victoryWinnerIndex=-1; GS.victoryPoints=0;
-    GS.victoryRank=''; GS.victoryRating=0; GS.gameOver=false; GS.phase='question';
-    GS.moves=0; GS.currentTurn=0; GS.answerer=-1; GS.currentAnswer='';
-    startGame();
-    await window.firebaseUpdate(rankedRoomRef,{status:'playing',lastUpdate:window.firebaseServerTimestamp()});
-    generateQuestion();
-    await publishOnlineState({phase:'question',gameOver:false,matchId:onlineMatchId});
+    // Lepaskan mesin pertandingan, tetapi pertahankan identitas Room dan koneksi Firebase.
+    if(window.onlineActionsUnsub){ window.onlineActionsUnsub(); window.onlineActionsUnsub=null; }
+    GS.online=false;
+    GS.gameOver=false;
+    cleanupGame();
+    showScreen('ranked-screen');
+    document.getElementById('ranked-login-panel').style.display='none';
+    document.getElementById('ranked-room-panel').style.display='block';
+    document.getElementById('ranked-waiting-panel').style.display='none';
+    document.getElementById('join-room-form').style.display='none';
+    const panel=document.getElementById('reuse-room-panel');
+    if(panel){
+        panel.style.display='block';
+        const code=document.getElementById('reuse-room-code'); if(code) code.textContent=rankedRoomCode||'-';
+        const btn=document.getElementById('reuse-room-btn');
+        const myUid=window.firebaseAuthUid||rankedClientId;
+        // Host boleh mereset Room; Guest hanya menunggu Host.
+        if(btn) btn.textContent = rankedRoomRef ? '♻️ GUNAKAN ROOM INI' : 'ROOM TIDAK TERSEDIA';
+    }
+    if(rankedRoomRef) attachReusableRoomLobbyListener();
 }
 
-async function rematch(){
+function attachReusableRoomLobbyListener(){
+    if(!rankedRoomRef || !window.firebaseOnValue) return;
+    if(rankedRoomUnsub) rankedRoomUnsub();
+    rankedRoomUnsub=window.firebaseOnValue(rankedRoomRef,snap=>{
+        const room=snap.val();
+        if(!room){
+            showScreen('ranked-screen');
+            backToRankedLogin();
+            return;
+        }
+        const roomMatch=Number(room.matchId||room.game?.matchId||0);
+        if((room.status==='starting' || room.status==='playing') && (!onlineRoomLobbyActive || roomMatch>onlineRoomLobbyMatchId)){
+            onlineRoomLobbyActive=false;
+            const panel=document.getElementById('reuse-room-panel'); if(panel) panel.style.display='none';
+            rankedSetWaiting('🎮 PERTANDINGAN DIMULAI','Menyiapkan papan catur...',true);
+            initOnlineGameFromRoom(room);
+            return;
+        }
+        const title=document.getElementById('waiting-title');
+        const info=document.getElementById('waiting-info');
+        if(title) title.textContent=room.guest?'⚔️ ROOM SIAP DIGUNAKAN':'🔑 MENUNGGU LAWAN...';
+        if(info) info.textContent=room.guest?'Kedua pemain tetap berada di room ini. Host dapat memulai pertandingan baru.':'Room sebelumnya masih aktif.';
+    });
+}
+
+async function reusePreviousRoom(){
+    if(!rankedRoomRef){ alert('❌ Room sebelumnya sudah tidak tersedia.'); return; }
+    await waitForFirebaseAuth();
+    try{
+        await syncFirebaseClock();
+        const snap=await window.firebaseGet(rankedRoomRef);
+        const room=snap.val();
+        if(!room?.host || !room?.guest){
+            alert('⏳ Kedua pemain harus tetap berada di Room.');
+            return;
+        }
+        const myUid=window.firebaseAuthUid||rankedClientId;
+        const amHost=String(room.host.id)===String(myUid);
+        if(!amHost){
+            document.getElementById('reuse-room-panel').style.display='none';
+            rankedSetWaiting('⏳ MENUNGGU HOST','Host akan menyiapkan papan pertandingan baru.',true);
+            return;
+        }
+        // Hanya Host yang membuat pertandingan baru. Action lama tidak perlu dihapus:
+        // setiap action baru memiliki matchId sehingga action lama otomatis diabaikan.
+        const nextMatch=Math.max(1,Number(room.matchId||room.game?.matchId||0)+1);
+        onlineMatchId=nextMatch;
+        onlineRoomLobbyActive=false;
+        await window.firebaseUpdate(rankedRoomRef,{
+            status:'waiting', game:null, matchId:nextMatch,
+            lastUpdate:window.firebaseServerTimestamp(), expiresAt:Date.now()+15*60*1000
+        });
+        document.getElementById('reuse-room-panel').style.display='none';
+        document.getElementById('ranked-ready-btn').style.display='inline-block';
+        document.getElementById('room-code-value').textContent=rankedRoomCode;
+        rankedSetWaiting('🔄 ROOM SIAP UNTUK PERTANDINGAN BARU','Kode room tetap sama. Tekan MULAI setelah kedua pemain siap.',true);
+        attachReusableRoomLobbyListener();
+    }catch(e){ alert('❌ Gagal menggunakan kembali room: '+(e?.message||e)); }
+}
+
+function rematch(){
     if(!GS.online){ startGame(); return; }
-    if(GS.onlineRole==='host'){
-        try{ await startOnlineRematchAsHost(); }
-        catch(e){ console.error('Rematch online:',e); alert('❌ Gagal memulai pertandingan ulang: '+(e?.message||e)); }
-    }else{
-        clearVictoryCinematic(); stopOnlineDisplayTimer(); onlineTimerToken='';
-        const actionId=Date.now()+'_'+Math.random().toString(36).slice(2);
-        const action={type:'rematch',player:onlineRoleIndex(),clientId:window.firebaseAuthUid||rankedClientId,actionId};
-        try{
-            await window.firebaseSet(window.firebaseRef(window.firebaseDB,`rankedRooms/${GS.onlineRoomCode}/actions/${actionId}`),action);
-            const ti=document.getElementById('turn-indicator');
-            if(ti) ti.textContent='⏳ Meminta pertandingan baru dari Host...';
-        }catch(e){ alert('❌ Gagal meminta pertandingan baru: '+(e?.message||e)); }
-    }
+    // Online TIDAK lagi membuka papan secara langsung. Kembali ke menu Room Pribadi.
+    showOnlineRoomReuseMenu();
 }
 
 // ========================================
