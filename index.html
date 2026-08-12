@@ -960,16 +960,16 @@
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            backdrop-filter: blur(8px);
+            backdrop-filter: none;
         }
         .question-overlay.active {
             display: flex;
-            animation: fadeIn 0.3s ease;
-            isolation: isolate;
-            contain: paint;
+            animation: none;
+            isolation: auto;
+            contain: none;
         }
         .question-overlay .timer-bar,
-        .question-overlay .question-box { transform: translateZ(0); }
+        .question-overlay .question-box { transform: none; }
         #game-canvas { display:block; position:relative; z-index:0; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -1951,6 +1951,13 @@
 #soul-counter{position:fixed!important;top:max(48px,calc(env(safe-area-inset-top) + 38px))!important;right:10px!important;left:auto!important;bottom:auto!important;transform:none!important;z-index:36!important;}
 @media(max-width:768px){#piece-select-msg{top:max(10px,env(safe-area-inset-top))!important;max-width:86vw!important;font-size:.56rem!important;padding:6px 11px!important;}#soul-counter{top:max(44px,calc(env(safe-area-inset-top) + 34px))!important;right:7px!important;max-width:70px!important;font-size:.42rem!important;padding:3px 5px!important;}}
 </style>
+
+<style id="fix-11-12-mobile-render">
+/* FIX 11.12: hindari compositing blur/transform pada overlay soal di HP */
+.question-overlay{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+.question-overlay.active{animation:none !important;isolation:auto !important;contain:none !important;}
+.question-overlay .timer-bar,.question-overlay .question-box{transform:none !important;will-change:auto !important;}
+</style>
 </head>
 <body>
 
@@ -2582,7 +2589,7 @@ function startGame(){
     GS.gameOver = false; 
     GS.currentQuestion = null;
     GS.timerVal = 0;
-    GS.timerMax = 60;
+    GS.timerMax = 30;
     onlineLastResultToken = '';
     onlineLastResultSymbol = '';
     onlineLastResultColor = '';
@@ -3811,14 +3818,11 @@ function applyOnlineState(st){
     clearHL();
     updateUI();
     updateAbilityButtons();
-    // The Three.js animation loop already renders continuously.
-    // Do not force two extra renders + resize on every Firebase heartbeat;
-    // that was expensive on phones and could expose transient board seams.
+    // FIX 11.12: jangan paksa resize/render saat jawaban atau state Firebase berubah.
+    // Animation loop Three.js sudah merender terus-menerus. Resize hanya saat ukuran
+    // viewport benar-benar berubah. Ini mencegah seam/garis horizontal pada GPU HP.
     if(renderer && piecesChanged){
-        try{
-            onResize();
-            renderer.render(scene,camera);
-        }catch(e){}
+        try{ renderPieces3D(); }catch(e){}
     }
     if(GS.phase==='question' && GS.currentQuestion && !GS.gameOver){
         showOnlineQuestion(GS.currentQuestion);
@@ -4088,7 +4092,7 @@ function startOnlineDisplayTimer(){
     stopOnlineDisplayTimer();
     onlineTimerToken=token;
 
-    const maxMs=Math.max(1000,Number(GS.timerMax||60)*1000);
+    const maxMs=Math.max(1000,Number(GS.timerMax||30)*1000);
     const paint=()=>{
         if(GS.phase!=='question' || GS.gameOver || onlineTimerToken!==token){
             stopOnlineDisplayTimer();
