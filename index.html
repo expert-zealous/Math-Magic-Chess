@@ -1958,6 +1958,11 @@
 .question-overlay.active{animation:none !important;isolation:auto !important;contain:none !important;}
 .question-overlay .timer-bar,.question-overlay .question-box{transform:none !important;will-change:auto !important;}
 </style>
+<style id="diagnostic-hide-piece-select">
+/* DIAGNOSTIC ONLY: sembunyikan notifikasi pilih bidak/tujuan untuk menguji sumber garis HP.
+   Tidak mengubah Commander, bidak, Firebase, timer, atau gameplay. */
+#piece-select-msg{display:none !important;}
+</style>
 </head>
 <body>
 
@@ -2589,7 +2594,7 @@ function startGame(){
     GS.gameOver = false; 
     GS.currentQuestion = null;
     GS.timerVal = 0;
-    GS.timerMax = 30;
+    GS.timerMax = 15;
     onlineLastResultToken = '';
     onlineLastResultSymbol = '';
     onlineLastResultColor = '';
@@ -2712,13 +2717,23 @@ function initThreeJS(){
     frame.position.y=-0.34; frame.receiveShadow=false;
     scene.add(frame);
 
+    // FIX 11.13: alas papan tanpa celah di bawah semua tile.
+    // Tile sedikit overlap untuk mencegah seam horizontal akibat rasterisasi
+    // perspektif pada layar/device-pixel-ratio HP.
+    const boardUnderlayGeo = new THREE.BoxGeometry(BOARD_SIZE*TILE_SIZE, 0.10, BOARD_SIZE*TILE_SIZE);
+    const boardUnderlayMat = new THREE.MeshStandardMaterial({color:0x6b4226, metalness:0.05, roughness:0.75});
+    const boardUnderlay = new THREE.Mesh(boardUnderlayGeo, boardUnderlayMat);
+    boardUnderlay.position.set(0, -0.055, 0);
+    boardUnderlay.receiveShadow=false;
+    scene.add(boardUnderlay);
+
     // Tiles
     boardMeshes=[];
     for(let r=0;r<8;r++){
         boardMeshes[r]=[];
         for(let c=0;c<8;c++){
             const isLight=(r+c)%2===0;
-            const geo=new THREE.BoxGeometry(TILE_SIZE-0.02, 0.12, TILE_SIZE-0.02);
+            const geo=new THREE.BoxGeometry(TILE_SIZE+0.012, 0.12, TILE_SIZE+0.012);
             const mat=new THREE.MeshStandardMaterial({
                 color: isLight ? 0xdecba4 : 0x6b4226,
                 metalness:0.1, roughness:0.6
@@ -3408,14 +3423,10 @@ function generateQuestion(){
     document.getElementById('question-overlay').classList.add('active');
 
     // Timer setup dengan bonus commander
-    let timerMax = 60;
-    try {
-        const p1Cmd = GS.players[0] && GS.players[0].commander ? GS.players[0].commander.id : null;
-        const p2Cmd = GS.players[1] && GS.players[1].commander ? GS.players[1].commander.id : null;
-        if(p1Cmd === 'queen' || p2Cmd === 'queen') timerMax = 78;
-    } catch(e){ 
-        timerMax = 60; 
-    }
+    let timerMax = 15;
+    // FIX 11.13: semua soal memakai tekanan waktu 15 detik.
+    // Tidak ada bonus durasi Commander agar deadline tetap konsisten.
+    try { timerMax = 15; } catch(e){ timerMax = 15; }
     
     GS.timerVal = timerMax;
     GS.timerMax = timerMax;
@@ -3698,8 +3709,8 @@ function serializeOnlineState(){
         victoryWinnerIndex: GS.victoryWinnerIndex ?? -1,
         victoryPoints: GS.victoryPoints || 0,
         currentQuestion: GS.currentQuestion ? {text:GS.currentQuestion.text, answer:GS.currentQuestion.answer} : null,
-        timerMax: GS.timerMax || 60,
-        timerVal: GS.timerVal || 60,
+        timerMax: GS.timerMax || 15,
+        timerVal: GS.timerVal || 15,
         questionDeadlineAt: questionDeadlineAt || 0,
         questionToken: onlineQuestionToken || '',
         answerAttempts: Array.from(onlineAnswerAttempts || []),
