@@ -2575,6 +2575,15 @@ function startGame(){
     GS.currentQuestion = null;
     GS.timerVal = 0;
     GS.timerMax = 100;
+    onlineLastResultToken = '';
+    onlineLastResultSymbol = '';
+    onlineLastResultColor = '';
+    onlineLastResultPlayer = -1;
+    onlineAnswerAttempts = new Set();
+    onlineQuestionToken = '';
+    onlineTimerToken = '';
+    questionDeadlineAt = 0;
+    stopOnlineDisplayTimer();
     GS.onlineLastResultToken = '';
     questionDeadlineAt = 0; 
     GS.victoryShown = false;
@@ -3245,16 +3254,20 @@ function localTryMove(tr, tc){
     }
 
     if(target){
-        target.captured = true;
         if(target.type === PT.KING){
+            // Capture Raja harus dikirim sebagai state FINAL sebelum layar kemenangan.
+            target.captured = true;
             doMove(piece, tr, tc);
-            clearHL(); hidePSMsg(); 
+            piece.captured = false;
+            clearHL(); hidePSMsg();
+            GS.moves++;
+            GS.phase='gameover';
+            GS.gameOver=true;
             renderPieces3D();
             updateAbilityButtons();
-            GS.gameOver = true; 
-            endGame(GS.answerer);
             return;
         }
+        target.captured = true;
     }
 
     doMove(piece, tr, tc);
@@ -3316,6 +3329,8 @@ function doMove(p, tr, tc){
 // ========================================
 function generateQuestion(){
     if(GS.gameOver) return;
+    questionDeadlineAt=0;
+    stopOnlineDisplayTimer();
 
     // ONLINE: setiap soal baru selalu dimulai sebagai fase QUESTION.
     // Tanpa ini, setelah fase SYNCING host membuat soal dan timer lokal
@@ -3386,20 +3401,17 @@ function generateQuestion(){
     // ONLINE: satu deadline absolut berbasis jam server Firebase.
     // Kedua perangkat menggambar bar dari deadline yang sama sehingga
     // tidak ada lagi timer cepat di laptop dan lambat di HP.
-    if(GS.online && GS.onlineRole==='host'){
-        questionDeadlineAt = Date.now() + firebaseServerOffset + (timerMax*1000);
-    }else if(!GS.online){
-        questionDeadlineAt = 0;
-    }
+    questionDeadlineAt = GS.online
+        ? Date.now() + firebaseServerOffset + (timerMax*1000)
+        : Date.now() + (timerMax*1000);
 
     const timerFill = document.getElementById('timer-fill');
     if(timerFill) timerFill.style.width = '100%';
 
     if(GS.qTimer) clearInterval(GS.qTimer);
     GS.qTimer = setInterval(() => {
-        const remainingMs = questionDeadlineAt
-            ? Math.max(0, questionDeadlineAt - (Date.now()+firebaseServerOffset))
-            : Math.max(0, GS.timerVal*1000);
+        const nowForTimer = Date.now() + (GS.online ? firebaseServerOffset : 0);
+        const remainingMs = Math.max(0, questionDeadlineAt - nowForTimer);
         GS.timerVal = Math.ceil(remainingMs/1000);
         const tf = document.getElementById('timer-fill');
         if(tf) tf.style.width = Math.max(0,(remainingMs/(GS.timerMax*1000))*100)+'%';
@@ -3426,7 +3438,8 @@ function generateQuestion(){
 function rnd(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
 
 function aiAnswer(){
-    if(GS.answerer !== -1) return;
+    if(GS.answerer !== -1 || GS.aiBusy) return;
+    GS.aiBusy=true;
     clearInterval(GS.qTimer); hideQ();
     
     // AI Iblis lebih pintar
@@ -3440,7 +3453,7 @@ function aiAnswer(){
         updateUI();
         showResult('✅','#44ff44');
         document.getElementById('turn-indicator').textContent = `🤖 ${GS.players[1].name} benar!`;
-        setTimeout(() => { if(!GS.gameOver){ GS.phase='move'; aiMove(); } }, 1200);
+        setTimeout(() => { GS.aiBusy=false; if(!GS.gameOver){ GS.phase='move'; aiMove(); } }, 1200);
     } else {
         GS.answerer = 0; GS.players[1].wrong++;
         resetSoulStreak(1);
@@ -3449,8 +3462,8 @@ function aiAnswer(){
         updateUI();
         showResult('❌','#ff4444');
         document.getElementById('turn-indicator').textContent = `Komputer salah -${dmg} HP! Giliran Anda`;
-        if(GS.players[1].hp <= 0){ endGame(0); return; }
-        setTimeout(() => { if(!GS.gameOver){ GS.phase='move'; showPSMsg('Pilih bidak Anda!'); } }, 1200);
+        if(GS.players[1].hp <= 0){ GS.aiBusy=false; endGame(0); return; }
+        setTimeout(() => { GS.aiBusy=false; if(!GS.gameOver){ GS.phase='move'; showPSMsg('Pilih bidak Anda!'); } }, 1200);
     }
 }
 
@@ -3654,11 +3667,24 @@ function showOnlineQuestion(q){
     if(!q) return;
     GS.currentQuestion = {text:q.text, answer:q.answer};
     GS.currentAnswer='';
+    const role=onlineRoleIndex();
+    const alreadyAnswered = onlineAnswerAttempts && onlineAnswerAttempts.has(role);
+
+    const qo=document.getElementById('question-overlay');
+    if(alreadyAnswered){
+        if(qo) qo.classList.remove('active');
+        hidePSMsg();
+        const ti=document.getElementById('turn-indicator');
+        if(ti) ti.textContent='⏳ Jawaban Anda sudah dinilai salah. Tunggu lawan merebut soal.';
+        stopOnlineDisplayTimer();
+        return;
+    }
+
     const qt=document.getElementById('question-text'); if(qt) qt.textContent=q.text;
-    const ad=document.getElementById('answer-display'); if(ad) ad.innerHTML='<span class=\"answer-cursor\">|</span>';
+    const ad=document.getElementById('answer-display'); if(ad) ad.innerHTML='<span class="answer-cursor">|</span>';
     const race=document.getElementById('race-text'); if(race) race.textContent='⚡ REBUTAN SOAL — SIAPA CEPAT DIA DAPAT!';
     const ti=document.getElementById('turn-indicator'); if(ti) ti.textContent='⚡ Keduanya boleh menjawab!';
-    const qo=document.getElementById('question-overlay'); if(qo) qo.classList.add('active');
+    if(qo) qo.classList.add('active');
     hidePSMsg();
     startOnlineDisplayTimer();
 }
@@ -3735,12 +3761,27 @@ function applyOnlineState(st){
     clearHL();
     updateUI();
     updateAbilityButtons();
-    if(renderer && piecesChanged) renderPieces3D();
+    if(renderer && piecesChanged){
+        try{
+            renderer.setScissorTest(false);
+            renderer.clear(true,true,true);
+            onResize();
+            renderer.render(scene,camera);
+        }catch(e){}
+    }
     if(renderer && (piecesChanged || GS.onlineRole==='guest')){
         requestAnimationFrame(()=>{
             try{
                 onResize();
+                renderer.clear(true,true,true);
                 renderer.render(scene,camera);
+                requestAnimationFrame(()=>{
+                    try{
+                        onResize();
+                        renderer.clear(true,true,true);
+                        renderer.render(scene,camera);
+                    }catch(e){}
+                });
             }catch(e){}
         });
     }
@@ -3831,6 +3872,7 @@ async function submitOnlineMove(tr,tc){
         if(GS.onlineRole==='host'){
             GS.phase='gameover';
             await publishOnlineState({phase:'gameover', gameOver:true});
+            endGame(role);
         }
     }else{
         GS.phase='syncing';
@@ -3936,12 +3978,13 @@ async function processOnlineAction(action){
             onlinePendingMoveActionId=null;
 
             if(GS.gameOver){
-                // Posisi final sudah diterapkan di Host, termasuk capture Raja.
-                if(GS.onlineRole==='host') scheduleRoomCleanup(true);
-                // Kirim state FINAL agar Guest menampilkan papan terakhir yang sama
-                // sebelum/bersamaan dengan layar kemenangan.
+                // Publish posisi FINAL terlebih dahulu agar kedua papan sama.
                 GS.phase='gameover';
                 await publishOnlineState({phase:'gameover', gameOver:true});
+                if(GS.onlineRole==='host'){
+                    scheduleRoomCleanup(true);
+                    endGame(action.player);
+                }
             }else{
                 // JANGAN langsung membuat soal baru. Kirim dulu posisi bidak terbaru
                 // supaya kedua perangkat sempat menampilkan perpindahan yang sama.
@@ -3998,9 +4041,7 @@ function startOnlineDisplayTimer(){
             stopOnlineDisplayTimer();
             return;
         }
-        const remaining=questionDeadlineAt
-            ? Math.max(0, questionDeadlineAt-(Date.now()+firebaseServerOffset))
-            : Math.max(0,Number(GS.timerVal||GS.timerMax||100)*1000);
+        const remaining=Math.max(0, questionDeadlineAt-(Date.now()+firebaseServerOffset));
         const fill=document.getElementById('timer-fill');
         if(fill) fill.style.width=Math.max(0,Math.min(100,(remaining/maxMs)*100))+'%';
         GS.timerVal=Math.ceil(remaining/1000);
