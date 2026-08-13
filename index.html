@@ -2830,14 +2830,13 @@ function initThreeJS(){
     // alas papan, dengan polygonOffset supaya tetap menang terhadap alas.
     boardMeshes=[];
     const tileGeo = new THREE.BoxGeometry(TILE_SIZE, 0.12, TILE_SIZE);
-    const tileMatLight = new THREE.MeshStandardMaterial({
-        color:0xdecba4, metalness:0.1, roughness:0.6,
-        polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1
-    });
-    const tileMatDark = new THREE.MeshStandardMaterial({
-        color:0x6b4226, metalness:0.1, roughness:0.6,
-        polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1
-    });
+    const tileMatLight = new THREE.MeshBasicMaterial({
+    color:0xdecba4
+});
+
+const tileMatDark = new THREE.MeshBasicMaterial({
+    color:0x6b4226
+});
     for(let r=0;r<8;r++){
         boardMeshes[r]=[];
         for(let c=0;c<8;c++){
@@ -4425,13 +4424,13 @@ function hideQ(){
     // FIX 12: setelah overlay ditutup, minta satu frame render bersih.
     // Ini memaksa GPU HP menggambar ulang papan dari geometri (bukan dari
     // cache layer lama yang sudah ter-resample), sehingga garis tidak tersisa.
-    //requestAnimationFrame(()=>{
-        //requestAnimationFrame(()=>{
-            //if(renderer && scene && camera && !threeContextLost){
-                //try{ renderer.render(scene, camera); }catch(e){}
-            //}
-        //});
-    //});
+    requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+            if(renderer && scene && camera && !threeContextLost){
+                try{ renderer.render(scene, camera); }catch(e){}
+            }
+        });
+    });
 }
 function showResult(s,c){
     const el=document.getElementById('result-feedback');
