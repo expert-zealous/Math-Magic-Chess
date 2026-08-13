@@ -3705,12 +3705,12 @@ function aiAnswer(){
         document.getElementById('turn-indicator').textContent = `Komputer salah -${dmg} HP! Giliran Anda`;
         if(GS.players[1].hp <= 0){ GS.aiBusy=false; endGame(0); return; }
         setTimeout(() => {
-    GS.aiBusy=false;
-    if(!GS.gameOver){
-        // GS.phase='move';
-        // showPSMsg('Pilih bidak Anda!');
-    }
-}, 1200);
+        GS.aiBusy=false;
+        if(!GS.gameOver){
+            GS.phase='move';
+            showPSMsg('Pilih bidak Anda!');
+        }
+    }, 1200);
     }
 }
 
@@ -3844,7 +3844,7 @@ function localNumpadOK(){
     } else {
         // Mode AI (tidak berubah)
         if(correct){
-            GS.answerer = 0; 
+            // GS.answerer = 0; 
             GS.players[0].correct++;
             applyCorrectBonus(0);
             updateUI();
