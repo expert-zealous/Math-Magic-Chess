@@ -8597,52 +8597,52 @@ function buildDragonCorner(g, sx, sz, E, Y, mStone, mGold, mFire){
     const D = new THREE.Group();
 
     // pedestal batu bertingkat
-    const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.66,0.86,0.24,8), mStone);
-    p1.position.y=0.12; D.add(p1);
+    const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.92,0.24,8), mStone);
+    p1.position.y = 0.12;
+    D.add(p1);
 
-    const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.54,0.66,0.18,8), mStone);
-    p2.position.y=0.32; D.add(p2);
+    const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.60,0.72,0.18,8), mStone);
+    p2.position.y = 0.30;
+    D.add(p2);
 
-    const ringG = new THREE.Mesh(new THREE.TorusGeometry(0.60,0.06,8,24), mGold);
-    ringG.rotation.x=Math.PI/2;
-    ringG.position.y=0.40;
+    const ringG = new THREE.Mesh(new THREE.TorusGeometry(0.64,0.06,8,24), mGold);
+    ringG.rotation.x = Math.PI/2;
+    ringG.position.y = 0.38;
     D.add(ringG);
 
-    // dua tiang emas penyangga
-    for(let s=-1;s<=1;s+=2){
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,1.8,8), mGold);
-        post.position.set(s*0.78,1.32,0);
-        D.add(post);
+    // panel emas belakang TANPA tiang
+    const frame = new THREE.Mesh(
+        new THREE.BoxGeometry(1.95, 1.95, 0.08),
+        mGold
+    );
+    frame.position.y = 1.15;
+    D.add(frame);
 
-        const top = new THREE.Mesh(new THREE.SphereGeometry(0.10,10,10), mFire);
-        top.position.set(s*0.78,2.28,0);
-        D.add(top);
-    }
-
-    // panel naga png
+    // gambar naga diperbesar, langsung di atas pedestal
     const mat = new THREE.MeshBasicMaterial({
         map: window.__dragonTex || null,
         transparent: true,
-        alphaTest: 0.1,
+        alphaTest: 0.08,
         side: THREE.DoubleSide
     });
-
     window.__dragonMaterials.push(mat);
 
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.7,1.7), mat);
-    plane.position.set(0,1.35,0.06);
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.85, 1.85), mat);
+    plane.position.set(0, 1.15, 0.06);
+    plane.renderOrder = 6;
     D.add(plane);
 
-    // bara api di kaki panel
+    // bara api kecil di bawah naga
     for(let s=-1;s<=1;s+=2){
         const e = new THREE.Mesh(new THREE.SphereGeometry(0.09,10,10), mFire);
-        e.position.set(s*0.5,0.55,0.15);
+        e.position.set(s*0.48, 0.48, 0.18);
         D.add(e);
     }
 
-    D.position.set(sx*E, Y, sz*E);
-    D.rotation.y = Math.atan2(-sx,-sz);
-    D.scale.setScalar(1.1);
+    // posisi & arah
+    D.position.set(sx * E, Y, sz * E);
+    D.rotation.y = Math.atan2(-sx, -sz);
+    D.scale.setScalar(1.28); // diperbesar
     g.add(D);
 }
 </script>
