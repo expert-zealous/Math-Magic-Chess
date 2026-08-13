@@ -2817,7 +2817,7 @@ function initThreeJS(){
     boardUnderlay.renderOrder=0;
     boardUnderlay.position.set(0, -0.30, 0);
     boardUnderlay.receiveShadow=false;
-    scene.add(boardUnderlay);
+    // scene.add(boardUnderlay);
 
     // Tiles
     // FIX 12: AKAR MASALAH GARIS DI HP.
@@ -3323,14 +3323,13 @@ function onBoardClick(event){
 function selectPiece(piece){
     clearHL();
     GS.selectedPiece = piece;
-
-    /*
+    hlTile(piece.row, piece.col, 0xffff00);
     const vm=getValidMoves(piece);
     vm.forEach(m=>{
         const t=GS.board[m.row][m.col];
         hlTile(m.row, m.col, t ? 0xff4444 : 0x44ff44);
     });
-    */
+    showPSMsg('Pilih tujuan untuk '+pieceName(piece.type));
 }
 
 function pieceName(t){
