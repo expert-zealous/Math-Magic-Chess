@@ -2817,7 +2817,7 @@ function initThreeJS(){
     boardUnderlay.renderOrder=0;
     boardUnderlay.position.set(0, -0.30, 0);
     boardUnderlay.receiveShadow=false;
-    // scene.add(boardUnderlay);
+    scene.add(boardUnderlay);
 
     // Tiles
     // FIX 12: AKAR MASALAH GARIS DI HP.
@@ -3704,7 +3704,13 @@ function aiAnswer(){
         showResult('❌','#ff4444');
         document.getElementById('turn-indicator').textContent = `Komputer salah -${dmg} HP! Giliran Anda`;
         if(GS.players[1].hp <= 0){ GS.aiBusy=false; endGame(0); return; }
-        setTimeout(() => { GS.aiBusy=false; if(!GS.gameOver){ GS.phase='move'; showPSMsg('Pilih bidak Anda!'); } }, 1200);
+        setTimeout(() => {
+    GS.aiBusy=false;
+    if(!GS.gameOver){
+        // GS.phase='move';
+        // showPSMsg('Pilih bidak Anda!');
+    }
+}, 1200);
     }
 }
 
