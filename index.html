@@ -1704,7 +1704,10 @@
   #gameover-screen .stats-container { max-width: 92vw; }
   #gameover-screen .stat-card { min-width: 64px !important; }
 }
-
+/* TES HEADER - sementara */
+#game-screen .game-header {
+    display: none !important;
+}
 </style>
 <style>
 /* MOBILE: Necromancer Soul counter dibuat kecil agar tidak menutupi raja/ratu di papan. */
@@ -3696,7 +3699,7 @@ function aiAnswer(){
         document.getElementById('turn-indicator').textContent = `🤖 ${GS.players[1].name} benar!`;
         setTimeout(() => { GS.aiBusy=false; if(!GS.gameOver){ GS.phase='move'; aiMove(); } }, 1200);
     } else {
-        // GS.answerer = 0; GS.players[1].wrong++;
+        GS.answerer = 0; GS.players[1].wrong++;
         resetSoulStreak(1);
         const dmg = calcDamage(1, 0);
         GS.players[1].hp -= dmg;
