@@ -5890,35 +5890,165 @@ function saveHist(w,l,m,mv,c,wr){
 
 function showHistory(){
     showScreen('history-screen');
+
     const h=JSON.parse(localStorage.getItem('mchessHist')||'[]');
     const sc=document.getElementById('summary-cards');
     const hc=document.getElementById('history-content');
-    const total=h.length, ai=h.filter(x=>x.mode==='ai').length, pvp=h.filter(x=>x.mode==='pvp').length;
-    const wc={}; h.forEach(x=>{ wc[x.winner]=(wc[x.winner]||0)+1; });
+
+    const total=h.length;
+    const ai=h.filter(x=>x.mode==='ai').length;
+    const pvp=h.filter(x=>x.mode==='pvp').length;
+
+    const wc={};
+    h.forEach(x=>{
+        wc[x.winner]=(wc[x.winner]||0)+1;
+    });
+
     const top=Object.entries(wc).sort((a,b)=>b[1]-a[1])[0];
 
     sc.innerHTML=`
-        <div class="summary-card"><div class="summary-value">${total}</div><div class="summary-label">Total Game</div></div>
-        <div class="summary-card"><div class="summary-value">${ai}</div><div class="summary-label">VS Komputer</div></div>
-        <div class="summary-card"><div class="summary-value">${pvp}</div><div class="summary-label">VS Pemain (Rank)</div></div>
-        <div class="summary-card"><div class="summary-value">${top?top[0]:'-'}</div><div class="summary-label">Terbaik (${top?top[1]:0} Win)</div></div>
+        <div class="summary-card">
+            <div class="summary-value">${total}</div>
+            <div class="summary-label">Total Game</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-value">${ai}</div>
+            <div class="summary-label">VS Komputer</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-value">${pvp}</div>
+            <div class="summary-label">VS Pemain (Rank)</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-value">${top ? top[0] : '-'}</div>
+            <div class="summary-label">
+                Terbaik (${top ? top[1] : 0} Win)
+            </div>
+        </div>
     `;
 
-    if(!h.length){ hc.innerHTML='<div class="no-history">Belum ada riwayat pertandingan</div>'; return; }
+    // Jika belum ada riwayat, tidak perlu tombol hapus.
+    if(!h.length){
+        hc.innerHTML=`
+            <div class="no-history">
+                Belum ada riwayat pertandingan
+            </div>
+        `;
+        return;
+    }
 
-    let t=`<table class="history-table"><thead><tr><th>Tanggal</th><th>Pemenang</th><th>Lawan</th><th>Mode</th><th>Langkah</th><th>Benar</th></tr></thead><tbody>`;
+    // Tombol hapus seluruh riwayat.
+    const deleteButton=`
+        <div style="
+            width:90%;
+            max-width:800px;
+            margin:0 auto 12px;
+            text-align:right;
+        ">
+            <button
+                type="button"
+                onclick="clearMatchHistory()"
+                style="
+                    padding:9px 16px;
+                    border:1px solid #ff6666;
+                    border-radius:10px;
+                    background:linear-gradient(135deg,#6b1018,#b51e2d);
+                    color:#ffffff;
+                    font-family:'Orbitron',sans-serif;
+                    font-size:0.68rem;
+                    font-weight:700;
+                    letter-spacing:1px;
+                    cursor:pointer;
+                    box-shadow:0 4px 14px rgba(255,50,70,0.25);
+                "
+            >
+                🗑 HAPUS SEMUA RIWAYAT
+            </button>
+        </div>
+    `;
+
+    let t=`
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Tanggal</th>
+                    <th>Pemenang</th>
+                    <th>Lawan</th>
+                    <th>Mode</th>
+                    <th>Langkah</th>
+                    <th>Benar</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
     h.forEach(x=>{
-        t+=`<tr>
-            <td style="color:#cccccc;font-size:0.85rem">${x.date}</td>
-            <td class="win-badge">${x.winner}</td>
-            <td class="lose-badge">${x.loser}</td>
-            <td><span class="mode-badge ${x.mode==='ai'?'mode-ai':'mode-pvp'}">${x.mode==='ai'?'🤖 VS AI':'👥 RANK'}</span></td>
-            <td style="text-align:center;color:#ffffff">${x.moves}</td>
-            <td style="text-align:center;color:#66ff66">${x.correct||0}</td>
-        </tr>`;
+        t+=`
+            <tr>
+                <td style="color:#cccccc;font-size:0.85rem">
+                    ${x.date}
+                </td>
+
+                <td class="win-badge">
+                    ${x.winner}
+                </td>
+
+                <td class="lose-badge">
+                    ${x.loser}
+                </td>
+
+                <td>
+                    <span class="mode-badge ${x.mode==='ai' ? 'mode-ai' : 'mode-pvp'}">
+                        ${x.mode==='ai' ? '🤖 VS AI' : '👥 RANK'}
+                    </span>
+                </td>
+
+                <td style="text-align:center;color:#ffffff">
+                    ${x.moves}
+                </td>
+
+                <td style="text-align:center;color:#66ff66">
+                    ${x.correct||0}
+                </td>
+            </tr>
+        `;
     });
-    t+='</tbody></table>';
-    hc.innerHTML=t;
+
+    t+=`
+            </tbody>
+        </table>
+    `;
+
+    hc.innerHTML=deleteButton+t;
+}
+
+
+// ==========================================================
+// HAPUS SELURUH RIWAYAT PERTANDINGAN
+// ==========================================================
+function clearMatchHistory(){
+    const h=JSON.parse(localStorage.getItem('mchessHist')||'[]');
+
+    if(!h.length){
+        alert('Riwayat pertandingan sudah kosong.');
+        return;
+    }
+
+    const sure=confirm(
+        'Hapus semua riwayat pertandingan?\n\n' +
+        'Jumlah riwayat: '+h.length+'\n\n' +
+        'Tindakan ini tidak dapat dibatalkan.'
+    );
+
+    if(!sure) return;
+
+    localStorage.removeItem('mchessHist');
+
+    // Render ulang halaman riwayat agar langsung kosong.
+    showHistory();
 }
 
 // ========================================
