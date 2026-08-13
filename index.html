@@ -2958,14 +2958,41 @@ function isCommanderUnlocked(cmd){
 // Saldo hasil edit localStorage tidak akan diterima karena server yang memeriksa.
 async function unlockCommander(cmdId){
     const cmd = COMMANDERS.find(c => c.id === cmdId);
-    if(!cmd || cmd.locked !== true || isCommanderUnlocked(cmd)) return true;
-    if(getPoints() < cmd.unlockCost) return false;   // cek cepat di UI
-    const ok = await spendPointsSecure(cmd.unlockCost, cmd.id);  // cek sebenarnya di server
+    if(!cmd) return false;
+
+    // Gratis atau sudah terbuka
+    if(cmd.locked !== true || isCommanderUnlocked(cmd)) return true;
+
+    // Commander premium wajib dibuka berurutan
+    const lockedCmds = COMMANDERS.filter(c => c.locked === true);
+    const idx = lockedCmds.findIndex(c => c.id === cmd.id);
+
+    if(idx > 0){
+        const previousCmd = lockedCmds[idx - 1];
+        if(!isCommanderUnlocked(previousCmd)){
+            console.warn(
+                '🔒 Harus membuka ' +
+                previousCmd.name +
+                ' sebelum membeli ' +
+                cmd.name
+            );
+            return false;
+        }
+    }
+
+    if(getPoints() < cmd.unlockCost) return false;
+
+    const ok = await spendPointsSecure(cmd.unlockCost, cmd.id);
     if(!ok) return false;
+
     const unlocked = getUnlockedCommanders();
     if(!unlocked.includes(cmd.id)) unlocked.push(cmd.id);
     localStorage.setItem('mc_unlocked_commanders', JSON.stringify(unlocked));
-    const profile=getMMCProfile(); profile.unlockedCommanders=unlocked; saveMMCProfile(profile);
+
+    const profile = getMMCProfile();
+    profile.unlockedCommanders = unlocked;
+    saveMMCProfile(profile);
+
     return true;
 }
 
@@ -3134,16 +3161,50 @@ function setActiveBoard(id){
 }
 
 async function unlockBoard(id){
-    const t = BOARD_THEMES.find(x => x.id === id);
-    if(!t || isBoardUnlocked(t)) return true;
+    const index = BOARD_THEMES.findIndex(x => x.id === id);
+    if(index < 0) return false;
+
+    const t = BOARD_THEMES[index];
+
+    // Sudah dimiliki
+    if(isBoardUnlocked(t)) return true;
+
+    // Papan premium wajib dibeli berurutan.
+    // Index 0 = Kayu Klasik gratis.
+    if(index > 1){
+        const previousBoard = BOARD_THEMES[index - 1];
+
+        if(!isBoardUnlocked(previousBoard)){
+            console.warn(
+                '🔒 Harus membuka ' +
+                previousBoard.name +
+                ' sebelum membeli ' +
+                t.name
+            );
+            return false;
+        }
+    }
+
     if(getPoints() < t.price) return false;
 
-    const ok = await spendPointsSecure(t.price, 'board_' + t.id);
+    const ok = await spendPointsSecure(
+        t.price,
+        'board_' + t.id
+    );
+
     if(!ok) return false;
 
     const list = getUnlockedBoards();
-    if(!list.includes(t.id)) list.push(t.id);
-    localStorage.setItem('mc_unlocked_boards', JSON.stringify(list));
+
+    if(!list.includes(t.id)){
+        list.push(t.id);
+    }
+
+    localStorage.setItem(
+        'mc_unlocked_boards',
+        JSON.stringify(list)
+    );
+
     return true;
 }
 
