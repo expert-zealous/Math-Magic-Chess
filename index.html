@@ -3161,38 +3161,41 @@ function setActiveBoard(id){
 }
 
 async function unlockBoard(id){
-    const index = BOARD_THEMES.findIndex(x => x.id === id);
-    if(index < 0) return false;
+    const t = BOARD_THEMES.find(x => x.id === id);
 
-    const t = BOARD_THEMES[index];
-
-    // Sudah dimiliki
-    if(isBoardUnlocked(t)) return true;
-
-    // Papan premium wajib dibeli berurutan.
-    // Index 0 = Kayu Klasik gratis.
-    if(index > 1){
-        const previousBoard = BOARD_THEMES[index - 1];
-
-        if(!isBoardUnlocked(previousBoard)){
-            console.warn(
-                '🔒 Harus membuka ' +
-                previousBoard.name +
-                ' sebelum membeli ' +
-                t.name
-            );
-            return false;
-        }
+    if(!t){
+        window.__mmcUnlockMessage = 'Papan tidak ditemukan.';
+        return false;
     }
 
-    if(getPoints() < t.price) return false;
+    if(isBoardUnlocked(t)){
+        return true;
+    }
 
-    const ok = await spendPointsSecure(
-        t.price,
-        'board_' + t.id
-    );
+    // Wajib beli berurutan
+    const prev = getPreviousBoardTheme(id);
 
-    if(!ok) return false;
+    if(prev && !isBoardUnlocked(prev)){
+        window.__mmcUnlockMessage =
+            'Buka papan "' + prev.name + '" terlebih dahulu sebelum membeli "' + t.name + '".';
+        return false;
+    }
+
+    if(getPoints() < t.price){
+        window.__mmcUnlockMessage =
+            'Diamond belum cukup untuk membeli "' + t.name + '".\n\n' +
+            'Butuh: ' + t.price.toLocaleString('id-ID') + ' 💎\n' +
+            'Punya: ' + getPoints().toLocaleString('id-ID') + ' 💎';
+        return false;
+    }
+
+    const ok = await spendPointsSecure(t.price, 'board_' + t.id);
+
+    if(!ok){
+        window.__mmcUnlockMessage =
+            'Pembelian gagal. Saldo server tidak cukup atau koneksi terputus.';
+        return false;
+    }
 
     const list = getUnlockedBoards();
 
@@ -3200,11 +3203,7 @@ async function unlockBoard(id){
         list.push(t.id);
     }
 
-    localStorage.setItem(
-        'mc_unlocked_boards',
-        JSON.stringify(list)
-    );
-
+    localStorage.setItem('mc_unlocked_boards', JSON.stringify(list));
     return true;
 }
 
@@ -3223,11 +3222,44 @@ function boardPreviewStyle(t){
             background-size:22px 22px;
             background-position:0 0,11px 11px;`;
 }
+// ==========================================================
+// URUTAN PEMBELIAN PAPAN
+// ==========================================================
+const BOARD_BUY_ORDER = ['classic', 'forest', 'desert', 'ocean', 'galaxy', 'dragon'];
+
+function getPreviousBoardTheme(boardId){
+    const idx = BOARD_BUY_ORDER.indexOf(boardId);
+    if(idx <= 0) return null;
+
+    const prevId = BOARD_BUY_ORDER[idx - 1];
+    return BOARD_THEMES.find(x => x.id === prevId) || null;
+}
+
+function getBoardBuyBlockReason(theme){
+    if(!theme) return 'Papan tidak ditemukan.';
+
+    if(isBoardUnlocked(theme)) return '';
+
+    const prev = getPreviousBoardTheme(theme.id);
+
+    if(prev && !isBoardUnlocked(prev)){
+        return 'Buka papan "' + prev.name + '" terlebih dahulu sebelum membeli "' + theme.name + '".';
+    }
+
+    if(getPoints() < theme.price){
+        return 'Diamond belum cukup untuk membeli "' + theme.name + '".\n\n' +
+               'Butuh: ' + theme.price.toLocaleString('id-ID') + ' 💎\n' +
+               'Punya: ' + getPoints().toLocaleString('id-ID') + ' 💎';
+    }
+
+    return '';
+}
 
 function renderBoardShop(){
     const pts = getPoints();
     const el = document.getElementById('board-shop-grid');
     const ptsEl = document.getElementById('shop-points');
+
     if(ptsEl) ptsEl.textContent = pts.toLocaleString('id-ID');
     if(!el) return;
 
@@ -3238,6 +3270,7 @@ function renderBoardShop(){
         const unlocked = isBoardUnlocked(t);
         const isActive = activeId === t.id && unlocked;
         const affordable = pts >= t.price;
+        const blockReason = getBoardBuyBlockReason(t);
 
         const card = document.createElement('div');
         card.className = 'board-card'
@@ -3245,14 +3278,17 @@ function renderBoardShop(){
             + (!unlocked ? ' locked-board' : '');
 
         let btn;
+
         if(isActive){
-            btn = `<button class="board-btn bb-active">✔ SEDANG DIPAKAI</button>`;
+            btn = `<button type="button" class="board-btn bb-active">✔ SEDANG DIPAKAI</button>`;
         }else if(unlocked){
-            btn = `<button class="board-btn bb-use" onclick="chooseBoard('${t.id}')">PAKAI PAPAN</button>`;
-        }else if(affordable){
-            btn = `<button class="board-btn bb-buy" onclick="buyBoard('${t.id}')">💎 ${t.price.toLocaleString('id-ID')}</button>`;
+            btn = `<button type="button" class="board-btn bb-use">PAKAI PAPAN</button>`;
+        }else if(blockReason && !affordable){
+            btn = `<button type="button" class="board-btn bb-poor">🔒 ${t.price.toLocaleString('id-ID')} 💎</button>`;
+        }else if(blockReason){
+            btn = `<button type="button" class="board-btn bb-poor">🔒 BUKA SEBELUMNYA</button>`;
         }else{
-            btn = `<button class="board-btn bb-poor">🔒 ${t.price.toLocaleString('id-ID')} 💎</button>`;
+            btn = `<button type="button" class="board-btn bb-buy">💎 ${t.price.toLocaleString('id-ID')}</button>`;
         }
 
         card.innerHTML = `
@@ -3263,6 +3299,23 @@ function renderBoardShop(){
             <div class="board-desc">${t.desc}</div>
             ${btn}
         `;
+
+        // Penting untuk HP:
+        // seluruh kartu bisa ditekan, termasuk kartu terkunci.
+        card.onclick = () => {
+            if(isActive){
+                alert('Papan "' + t.name + '" sedang dipakai.');
+                return;
+            }
+
+            if(unlocked){
+                chooseBoard(t.id);
+                return;
+            }
+
+            buyBoard(t.id);
+        };
+
         el.appendChild(card);
     });
 }
@@ -3278,26 +3331,46 @@ async function buyBoard(id){
     const t = BOARD_THEMES.find(x => x.id === id);
     if(!t) return;
 
-    const pts = getPoints();
-    if(pts < t.price){
-        alert('💎 Diamond belum cukup.\nButuh: ' + t.price.toLocaleString('id-ID') +
-              '\nPunya: ' + pts.toLocaleString('id-ID'));
+    if(isBoardUnlocked(t)){
+        setActiveBoard(id);
+        renderBoardShop();
+        alert('✅ Papan "' + t.name + '" aktif.');
         return;
     }
 
-    const ok = confirm('Beli papan "' + t.name + '"?\n\n' +
+    // Cek urutan dan diamond terlebih dahulu.
+    const reason = getBoardBuyBlockReason(t);
+    if(reason){
+        alert(reason);
+        renderBoardShop();
+        return;
+    }
+
+    const pts = getPoints();
+
+    const ok = confirm(
+        'Beli papan "' + t.name + '"?\n\n' +
         'Harga: ' + t.price.toLocaleString('id-ID') + ' 💎\n' +
-        'Sisa nanti: ' + (pts - t.price).toLocaleString('id-ID') + ' 💎');
+        'Sisa nanti: ' + (pts - t.price).toLocaleString('id-ID') + ' 💎'
+    );
+
     if(!ok) return;
 
     const bought = await unlockBoard(id);
+
     if(bought){
         setActiveBoard(id);
         updatePointsDisplay();
         renderBoardShop();
         alert('🎉 Berhasil! Papan "' + t.name + '" sudah aktif.');
     }else{
-        alert('❌ Pembelian gagal. Saldo server tidak cukup atau koneksi terputus.');
+        if(window.__mmcUnlockMessage){
+            alert(window.__mmcUnlockMessage);
+            window.__mmcUnlockMessage = '';
+        }else{
+            alert('❌ Pembelian gagal. Saldo server tidak cukup atau koneksi terputus.');
+        }
+
         renderBoardShop();
     }
 }
