@@ -3597,7 +3597,7 @@ function generateQuestion(){
         document.getElementById('race-text').textContent = '⚡ JAWAB SEBELUM KOMPUTER!';
         document.getElementById('turn-indicator').textContent = '⚡ Soal Muncul!';
     }
-    document.getElementById('question-overlay').classList.add('active');
+    //document.getElementById('question-overlay').classList.add('active');
 
     // Timer setup dengan bonus commander
     let timerMax = 15;
@@ -4434,7 +4434,12 @@ function hideQ(){
     });
 }
 function showResult(s,c){
-    return;
+    const el=document.getElementById('result-feedback');
+    if(!el) return;
+    el.textContent=s; el.style.color=c;
+    el.classList.remove('active'); void el.offsetWidth;
+    el.classList.add('active');
+    setTimeout(()=>el.classList.remove('active'),1200);
 }
 function showPSMsg(msg){
     const el=document.getElementById('piece-select-msg');
