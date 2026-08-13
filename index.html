@@ -1770,7 +1770,7 @@
 #game-screen #turn-indicator {
     position: absolute;
 
-    top: 60px;
+    top: 45px;
     left: 50%;
     transform: translateX(-50%);
 
@@ -2885,20 +2885,58 @@ function initThreeJS(){
     renderer.sortObjects = true;
     // No dynamic shadows: prevents the moving horizontal seam/artifact seen after answer state changes,
     // and significantly reduces GPU work on phones. Lighting remains symmetric.
-    renderer.shadowMap.enabled=false;
-    renderer.toneMapping=THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure=1.3;
+    // ==========================================================
+// RENDERER + LIGHTING BALANCED
+// Warna bidak tetap biru/merah pekat dan glossy,
+// mahkota emas tetap terang tanpa menjadi putih susu.
+// ==========================================================
 
-    // Lights: dibuat simetris supaya papan HP tidak terang di kiri dan gelap di kanan.
-    scene.add(new THREE.AmbientLight(0x777790, 0.82));
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x242038, 0.72);
-    hemi.position.set(0, 12, 0);
-    scene.add(hemi);
+renderer.shadowMap.enabled = false;
 
-    const dl=new THREE.DirectionalLight(0xfff5df, 0.42);
-    dl.position.set(0, 16, 0);
-    dl.castShadow=false;
-    scene.add(dl);
+// Three.js yang Anda pakai adalah r128
+renderer.outputEncoding = THREE.sRGBEncoding;
+
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+// Lebih rendah agar warna tidak terlalu putih/pucat
+renderer.toneMappingExposure = 0.82;
+
+
+// Cahaya umum rendah: menjaga bagian bayangan tidak hitam total
+const ambient = new THREE.AmbientLight(0x59627B, 0.26);
+scene.add(ambient);
+
+
+// Cahaya dari atas dan warna gelap dari bawah
+const hemi = new THREE.HemisphereLight(
+    0xE8E0D3, // warna cahaya atas: putih hangat lembut
+    0x12182A, // warna bawah: biru gelap
+    0.32
+);
+hemi.position.set(0, 14, 0);
+scene.add(hemi);
+
+
+// Lampu utama: sumber kilau glossy pada badan bidak
+const keyLight = new THREE.DirectionalLight(0xFFF0D5, 0.52);
+keyLight.position.set(6, 13, 8);
+keyLight.castShadow = false;
+scene.add(keyLight);
+
+
+// Lampu hangat kecil untuk membuat mahkota emas berkilau,
+// tetapi tidak sampai memutihkan emas.
+const goldRimLight = new THREE.DirectionalLight(0xFFC45F, 0.20);
+goldRimLight.position.set(-7, 10, -5);
+goldRimLight.castShadow = false;
+scene.add(goldRimLight);
+
+
+// Cahaya dingin sangat tipis untuk kontur bidak biru/merah
+const coolRimLight = new THREE.DirectionalLight(0x72A7FF, 0.08);
+coolRimLight.position.set(0, 7, -10);
+coolRimLight.castShadow = false;
+scene.add(coolRimLight); 
 
     // Board frame
     const frameGeo = new THREE.BoxGeometry(BOARD_SIZE*TILE_SIZE + 1.4, 0.5, BOARD_SIZE*TILE_SIZE + 1.4);
@@ -3054,33 +3092,90 @@ function cleanupGame(){
 }
 
 // ========================================
-// 3D PIECE CREATION - Realistic & Scaled
+// 3D PIECE CREATION - Glossy Royal Edition
 // ========================================
 function createPieceMesh(piece){
     const isP1 = piece.player===0;
-    
-    const mainColor  = isP1 ? 0x0B2D68 : 0x7A0D1A;
-    const darkColor  = isP1 ? 0x051633 : 0x40060D;
-    const shinyColor = isP1 ? 0x1D56A5 : 0xB51F32;
 
-    const metalVal   = 0.8;
-    const roughVal   = 0.22;
+    // BIRU ROYAL vs MERAH RUBI — glossy, bukan plastik
+    const mainColor  = isP1 ? 0x1A56C4 : 0xC41E32;
+    const darkColor  = isP1 ? 0x0C2E78 : 0x6E1018;
+    const shinyColor = isP1 ? 0x4C8DFF : 0xF04355;
 
-    // Material yang diperbarui agar tidak terlalu gelap:
-    const mat      = new THREE.MeshStandardMaterial({color:mainColor, metalness:metalVal, roughness:roughVal});
-    const matShiny = new THREE.MeshStandardMaterial({color:shinyColor, metalness:metalVal, roughness:roughVal});
-    // ... (sisanya biarkan seperti biasa)    
-    const matDark  = new THREE.MeshStandardMaterial({color:darkColor, metalness:0.7, roughness:0.3});
-    const goldMat  = new THREE.MeshStandardMaterial({color:0xffd700, metalness:0.9, roughness:0.1, emissive:0xaa7700, emissiveIntensity:0.3});
-    const gemMat   = new THREE.MeshStandardMaterial({color:0xff2266, metalness:0.5, roughness:0.1, emissive:0xff0044, emissiveIntensity:0.4});
-    const eyeWhite = new THREE.MeshBasicMaterial({color:0xffffff});
-    const eyeBlack = new THREE.MeshBasicMaterial({color:0x000000});
+        // ==========================================================
+    // MATERIAL FINAL - Three.js r128
+    // Glossy biru/merah dan emas yang tidak pucat
+    // ==========================================================
+
+    // Badan utama: glossy seperti enamel
+    const mat = new THREE.MeshPhongMaterial({
+        color: mainColor,
+        specular: isP1 ? 0x8FB9FF : 0xFFB0B8,
+        shininess: 75,
+        emissive: isP1 ? 0x061533 : 0x210307,
+        emissiveIntensity: 0.06
+    });
+
+    // Bagian yang terkena highlight
+    const matShiny = new THREE.MeshPhongMaterial({
+        color: shinyColor,
+        specular: 0xFFFFFF,
+        shininess: 120,
+        emissive: isP1 ? 0x071A44 : 0x2A070C,
+        emissiveIntensity: 0.04
+    });
+
+    // Bagian gelap/lekukan
+    const matDark = new THREE.MeshPhongMaterial({
+        color: darkColor,
+        specular: 0x555555,
+        shininess: 35,
+        emissive: 0x000000,
+        emissiveIntensity: 0
+    });
+
+    // ==========================================================
+    // MAHKOTA RATU DAN RAJA - EMAS ROYAL
+    // Tidak putih, tidak hitam, tetap mengkilap
+    // ==========================================================
+
+    const goldMat = new THREE.MeshPhongMaterial({
+        color: 0xC99624,
+        specular: 0xFFF0A6,
+        shininess: 100,
+        emissive: 0x1E0E00,
+        emissiveIntensity: 0.08
+    });
+
+    const goldBright = new THREE.MeshPhongMaterial({
+        color: 0xF0BE45,
+        specular: 0xFFFFFF,
+        shininess: 130,
+        emissive: 0x2A1500,
+        emissiveIntensity: 0.10
+    });
+
+    // Permata mahkota
+    const gemMat = new THREE.MeshPhongMaterial({
+        color: isP1 ? 0x258CFF : 0xE52B45,
+        specular: 0xFFFFFF,
+        shininess: 150,
+        emissive: isP1 ? 0x001A38 : 0x280006,
+        emissiveIntensity: 0.12
+    });
+
+    const eyeWhite = new THREE.MeshStandardMaterial({
+        color: 0xFFFFF0,
+        roughness: 0.2
+    });
+
+    const eyeBlack = new THREE.MeshStandardMaterial({
+        color: 0x111111,
+        roughness: 0.2
+    });
 
     const group = new THREE.Group();
-    
-    // (Sisa kode ke bawah biarkan tetap seperti semula...)
 
-    // Scale: Pawn=1.0, Rook/Bishop/Knight=1.35, Queen=1.55, King=1.75
     let scale = 1.4;
     if(piece.type===PT.ROOK||piece.type===PT.BISHOP||piece.type===PT.KNIGHT) scale=1.35;
     if(piece.type===PT.QUEEN) scale=1.9;
@@ -3099,10 +3194,31 @@ function createPieceMesh(piece){
         ring.position.y=y; ring.rotation.x=Math.PI/2; group.add(ring);
     }
 
-    let bt; // baseTop
+    // Fleur-de-lis emas untuk mahkota
+    function addFleur(x, y, z, s){
+        const g = new THREE.Group();
+        const mid = new THREE.Mesh(new THREE.ConeGeometry(0.028*s, 0.13*s, 8), goldMat);
+        mid.position.y = 0.065*s;
+        g.add(mid);
+        for(let side=-1; side<=1; side+=2){
+            const petal = new THREE.Mesh(new THREE.ConeGeometry(0.02*s, 0.09*s, 8), goldBright);
+            petal.position.set(side*0.03*s, 0.04*s, 0);
+            petal.rotation.z = -side*0.7;
+            g.add(petal);
+        }
+        const pearl = new THREE.Mesh(new THREE.SphereGeometry(0.018*s, 10, 10), goldBright);
+        pearl.position.y = 0.13*s;
+        g.add(pearl);
+        g.position.set(x, y, z);
+        group.add(g);
+    }
+
+    let bt;
 
     switch(piece.type){
 
+        // ============ PION / BENTENG / KUDA / GAJAH ============
+        // biarkan case kamu yang lama di sini (PAWN, ROOK, KNIGHT, BISHOP)
         // ============ PION ============
         case PT.PAWN: {
             bt = addBase(0.06, 0.28);
@@ -3248,102 +3364,135 @@ function createPieceMesh(piece){
             break;
         }
 
-        // ============ RATU / MENTERI ============
+        // ============ RATU / MENTERI — MAHKOTA FULL EMAS ============
         case PT.QUEEN: {
             bt = addBase(0.12, 0.38);
-            // Stem
+
             const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.28, 0.2, 16), mat);
             stem.position.y=bt+0.1; stem.castShadow=false; group.add(stem);
-            // Waist
+
             const waist=new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), mat);
             waist.position.y=bt+0.27; waist.scale.y=0.7; group.add(waist);
-            // Body
-            const body=new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.18, 0.3, 16), matShiny);
-            body.position.y=bt+0.5; body.castShadow=false; group.add(body);
-            addRing(bt+0.65, 0.13, 0.03, goldMat);
-            // Crown base
-            const cb=new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.11, 0.08, 16), goldMat);
-            cb.position.y=bt+0.72; cb.castShadow=false; group.add(cb);
-            addRing(bt+0.78, 0.14, 0.028, goldMat);
-            // Crown spikes + gems
+
+            const body=new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.18, 0.28, 16), matShiny);
+            body.position.y=bt+0.48; body.castShadow=false; group.add(body);
+
+            // Kalung emas
+            addRing(bt+0.62, 0.14, 0.032, goldMat);
+
+            // ===== MAHKOTA FULL EMAS =====
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.12, 0.07, 20), goldMat);
+            neck.position.y = bt+0.68; group.add(neck);
+
+            // Circlet / gelang mahkota
+            const circlet = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.18, 0.10, 24), goldMat);
+            circlet.position.y = bt+0.76; group.add(circlet);
+            addRing(bt+0.81, 0.205, 0.026, goldBright);
+
+            // Topi dalam emas
+            const cap = new THREE.Mesh(
+                new THREE.SphereGeometry(0.155, 20, 16, 0, Math.PI*2, 0, Math.PI/2),
+                goldMat
+            );
+            cap.position.y = bt+0.80; group.add(cap);
+
+            // 8 fleur-de-lis emas mengelilingi mahkota
             for(let i=0;i<8;i++){
                 const a=(i/8)*Math.PI*2;
-                const sp=new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.12, 6), goldMat);
-                sp.position.set(Math.cos(a)*0.13, bt+0.86, Math.sin(a)*0.13);
-                sp.castShadow=false; group.add(sp);
-                const gm=new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), gemMat);
-                gm.position.set(Math.cos(a)*0.13, bt+0.93, Math.sin(a)*0.13);
-                group.add(gm);
+                addFleur(Math.cos(a)*0.19, bt+0.86, Math.sin(a)*0.19, i%2===0 ? 1.15 : 0.9);
+
+                // mutiara emas di pangkal setiap puncak
+                const bead = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 10), goldBright);
+                bead.position.set(Math.cos(a)*0.19, bt+0.84, Math.sin(a)*0.19);
+                group.add(bead);
             }
-            // Top orb
-            const orb=new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), goldMat);
-            orb.position.y=bt+0.94; orb.castShadow=false; group.add(orb);
-            const topGem=new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 12), gemMat);
-            topGem.position.y=bt+1.02; group.add(topGem);
+
+            // Orb puncak full emas
+            const orb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), goldBright);
+            orb.position.y = bt+1.02; group.add(orb);
+
+            const finial = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.09, 8), goldMat);
+            finial.position.y = bt+1.10; group.add(finial);
+
+            const tip = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 10), goldBright);
+            tip.position.y = bt+1.16; group.add(tip);
             break;
         }
 
-        // ============ RAJA ============
+        // ============ RAJA — MAHKOTA IMPERIAL FULL EMAS ============
         case PT.KING: {
             bt = addBase(0.14, 0.42);
-            // Wide stem
+
             const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.32, 0.22, 16), mat);
             stem.position.y=bt+0.11; stem.castShadow=false; group.add(stem);
-            // Waist
+
             const waist=new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), mat);
             waist.position.y=bt+0.32; waist.scale.y=0.65; group.add(waist);
-            // Body
-            const body=new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 0.38, 16), matShiny);
-            body.position.y=bt+0.6; body.castShadow=false; group.add(body);
-            // Belt
-            addRing(bt+0.52, 0.18, 0.03, goldMat);
-            // Upper collar
-            addRing(bt+0.8, 0.16, 0.035, goldMat);
-            // Crown base
-            const cBase=new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.1, 16), goldMat);
-            cBase.position.y=bt+0.88; cBase.castShadow=false; group.add(cBase);
-            // Crown ring
-            addRing(bt+0.95, 0.19, 0.038, goldMat);
-            // Crown spikes (alternating tall/short)
+
+            const body=new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 0.36, 16), matShiny);
+            body.position.y=bt+0.58; body.castShadow=false; group.add(body);
+
+            // Sabuk + kerah emas
+            addRing(bt+0.50, 0.19, 0.032, goldMat);
+            addRing(bt+0.78, 0.165, 0.034, goldMat);
+
+            // ===== MAHKOTA IMPERIAL FULL EMAS =====
+            const cBase = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.17, 0.12, 24), goldMat);
+            cBase.position.y = bt+0.88; group.add(cBase);
+
+            addRing(bt+0.95, 0.235, 0.034, goldBright);
+
+            // Hiasan keliling: silang emas & fleur bergantian
             for(let i=0;i<8;i++){
                 const a=(i/8)*Math.PI*2;
-                const tall = i%2===0;
-                const h = tall ? 0.18 : 0.11;
-                const sp=new THREE.Mesh(new THREE.ConeGeometry(0.035, h, 6), goldMat);
-                sp.position.set(Math.cos(a)*0.19, bt+0.95+h/2, Math.sin(a)*0.19);
-                sp.castShadow=false; group.add(sp);
-                if(tall){
-                    const gm=new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 10), gemMat);
-                    gm.position.set(Math.cos(a)*0.19, bt+0.95+h+0.02, Math.sin(a)*0.19);
-                    group.add(gm);
+                const x=Math.cos(a)*0.22, z=Math.sin(a)*0.22;
+                if(i%2===0){
+                    const cv=new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.12, 0.028), goldMat);
+                    cv.position.set(x, bt+1.04, z); group.add(cv);
+                    const ch=new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.028, 0.028), goldBright);
+                    ch.position.set(x, bt+1.07, z); group.add(ch);
+                } else {
+                    addFleur(x, bt+0.98, z, 0.85);
                 }
             }
-            // Crown dome
+
+            // 2 lengkungan emas (ciri mahkota kaisar)
+            for(let i=0;i<2;i++){
+                const arch=new THREE.Mesh(
+                    new THREE.TorusGeometry(0.17, 0.022, 12, 28, Math.PI),
+                    goldMat
+                );
+                arch.position.y = bt+0.96;
+                arch.rotation.y = i*Math.PI/2;
+                group.add(arch);
+            }
+
+            // Kubah emas di dalam lengkung
             const dome=new THREE.Mesh(
-                new THREE.SphereGeometry(0.14, 16, 16, 0, Math.PI*2, 0, Math.PI/2),
+                new THREE.SphereGeometry(0.145, 20, 16, 0, Math.PI*2, 0, Math.PI/2),
                 goldMat
             );
-            dome.position.y=bt+1.05; dome.castShadow=false; group.add(dome);
-            // Globus cruciger (orb)
-            const kOrb=new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), goldMat);
-            kOrb.position.y=bt+1.22; kOrb.castShadow=false; group.add(kOrb);
-            // CROSS (big & prominent)
-            const crossV=new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.24, 0.045), goldMat);
-            crossV.position.y=bt+1.38; crossV.castShadow=false; group.add(crossV);
-            const crossH=new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.045), goldMat);
-            crossH.position.y=bt+1.42; crossH.castShadow=false; group.add(crossH);
-            // Cross gem
-            const cGem=new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), gemMat);
-            cGem.position.y=bt+1.52; group.add(cGem);
+            dome.position.y = bt+0.96; group.add(dome);
+
+            // Globus + salib besar full emas
+            const kOrb=new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), goldBright);
+            kOrb.position.y = bt+1.20; group.add(kOrb);
+
+            const crossV=new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.28, 0.048), goldMat);
+            crossV.position.y = bt+1.40; group.add(crossV);
+
+            const crossH=new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.048, 0.048), goldBright);
+            crossH.position.y = bt+1.46; group.add(crossH);
+
+            const capstone=new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 12), goldBright);
+            capstone.position.y = bt+1.56; group.add(capstone);
             break;
         }
     }
 
-    // Glow ring at base
+    // Glow ring di kaki — biarkan seperti kode kamu
     const gr = 0.38 + scale*0.05;
     const glowGeo=new THREE.RingGeometry(gr, gr+0.08, 32);
-    // FIX 12: cincin glow melayang tepat di atas tile. Tanpa depthWrite:false
-    // cincin ini ikut menghasilkan garis lengkung saat frame dikomposit ulang di HP.
     const glowMat=new THREE.MeshBasicMaterial({
         color:mainColor, transparent:true, opacity:0.35, side:THREE.DoubleSide,
         depthWrite:false,
