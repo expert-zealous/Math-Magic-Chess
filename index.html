@@ -1818,6 +1818,34 @@
     margin-top: 1px !important;
     letter-spacing: .4px !important;
   }
+  /* Badge Soul menempel di kartu karakter, bukan di kanan atas papan */
+.player-soul {
+    display: none;
+    margin-top: 3px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #330033, #660066);
+    border: 1px solid #cc44ff;
+    color: #ffccff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.48rem;
+    font-weight: 900;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    line-height: 1.2;
+    pointer-events: none;
+    box-shadow: 0 0 10px rgba(204,68,255,0.35);
+}
+.player-soul.is-on { display: inline-block; }
+
+/* Badge lama di tengah/kanan atas tidak dipakai lagi */
+#soul-counter {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .player-soul { font-size: 0.40rem; padding: 2px 5px; }
+}
   #soul-counter { white-space: nowrap; }
 @media (max-width: 768px){ #ability-panel{gap:4px !important; bottom:2px !important;} #soul-counter{font-size:.48rem !important; padding:3px 6px !important; min-width:0 !important; transform:scale(.82); transform-origin:center bottom;} #ability-panel .ability-btn{min-width:34px !important; height:28px !important; font-size:.55rem !important;} }
 @media (max-height: 500px) and (max-width: 900px){ #ability-panel{bottom:1px !important;} #soul-counter{font-size:.4rem !important; padding:2px 4px !important; transform:scale(.7);} }
@@ -2096,6 +2124,289 @@
 }
 #result-feedback{transform:translateZ(0) translate(-50%,-50%);-webkit-transform:translateZ(0) translate(-50%,-50%);}
 </style>
+<style id="board-shop-ui">
+#board-shop-screen{
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    background:radial-gradient(ellipse at center,#123045 0%,#0a0a1a 70%);
+    padding:70px 16px 40px 16px;
+    overflow-y:auto;
+}
+.btn-board-shop{
+    background:linear-gradient(135deg,#0d3d4e 0%,#136b82 50%,#1a90ab 100%);
+    border-color:#2fb8d6;
+    color:#ccf3ff;
+}
+.btn-board-shop .btn-icon{
+    background:linear-gradient(135deg,#2fb8d6,#66e0ff);
+    color:#ffffff;
+}
+.btn-board-shop:hover{
+    background:linear-gradient(135deg,#136b82 0%,#1a90ab 50%,#22aac9 100%);
+    border-color:#88eaff;
+    color:#ffffff;
+    box-shadow:0 8px 35px rgba(47,184,214,.55), inset 0 0 20px rgba(136,234,255,.15);
+    transform:translateY(-4px) scale(1.02);
+}
+.board-shop-grid{
+    width:100%;
+    max-width:860px;
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:14px;
+}
+.board-card{
+    background:rgba(14,20,44,.9);
+    border:2px solid rgba(120,160,220,.25);
+    border-radius:16px;
+    padding:12px;
+    text-align:center;
+    transition:all .3s;
+}
+.board-card.active-board{
+    border-color:#ffd700;
+    box-shadow:0 0 22px rgba(255,215,0,.35);
+}
+.board-card.locked-board{ opacity:.85; }
+.board-preview{
+    position:relative;
+    height:96px;
+    border-radius:11px;
+    overflow:hidden;
+    margin-bottom:9px;
+    border:2px solid rgba(255,255,255,.12);
+}
+.board-preview-emoji{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    font-size:2rem;
+    text-shadow:0 3px 10px rgba(0,0,0,.6);
+}
+.board-name{
+    font-family:'Orbitron',sans-serif;
+    font-size:.82rem;
+    font-weight:900;
+    color:#ffffff;
+    letter-spacing:1px;
+}
+.board-desc{
+    font-size:.66rem;
+    color:#b9c6dd;
+    margin:4px 0 9px;
+    line-height:1.25;
+    min-height:30px;
+}
+.board-btn{
+    width:100%;
+    padding:9px;
+    border-radius:10px;
+    border:2px solid;
+    font-family:'Orbitron',sans-serif;
+    font-size:.68rem;
+    font-weight:900;
+    letter-spacing:1px;
+    cursor:pointer;
+    transition:all .25s;
+}
+.bb-buy{ background:linear-gradient(135deg,#8a6a00,#d6a400); border-color:#ffd700; color:#1a1a1a; }
+.bb-use{ background:linear-gradient(135deg,#0d5c2a,#18a34a); border-color:#3ee87b; color:#ffffff; }
+.bb-active{ background:rgba(255,215,0,.16); border-color:#ffd700; color:#ffd700; cursor:default; }
+.bb-poor{ background:rgba(70,70,90,.6); border-color:#666; color:#aaa; cursor:not-allowed; }
+@media(max-width:768px){
+    .board-shop-grid{ grid-template-columns:repeat(2,1fr); gap:10px; }
+    .board-preview{ height:74px; }
+    .board-preview-emoji{ font-size:1.5rem; }
+    .board-name{ font-size:.7rem; }
+    .board-desc{ font-size:.58rem; min-height:26px; }
+    .board-btn{ font-size:.58rem; padding:8px 4px; }
+}
+</style>
+<style id="wow-command-hud">
+/* =========================================================
+   HUD PERINTAH PREMIUM
+   Kotak atas = banner emas kerajaan
+   Turn indicator = panel kaca emas di bawahnya
+   ========================================================= */
+
+#piece-select-msg{
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    top: max(10px, env(safe-area-inset-top)) !important;
+    bottom: auto !important;
+    transform: translateX(-50%) translateZ(0) !important;
+    -webkit-transform: translateX(-50%) translateZ(0) !important;
+    z-index: 80 !important;
+
+    display: none;
+    width: max-content !important;
+    max-width: min(72vw, 430px) !important;
+    padding: 8px 22px 8px 16px !important;
+
+    border-radius: 999px !important;
+    border: 1.5px solid #ffe08a !important;
+    background:
+        linear-gradient(180deg, #ffe9a8 0%, #f0c24a 46%, #c48a14 100%) !important;
+    color: #2a1600 !important;
+
+    font-family: 'Cinzel', 'Orbitron', serif !important;
+    font-size: .78rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 1.5px !important;
+    text-transform: uppercase !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    text-shadow: 0 1px 0 rgba(255,255,255,.38) !important;
+
+    box-shadow:
+        0 0 0 1px rgba(70,36,0,.4),
+        0 8px 22px rgba(0,0,0,.46),
+        0 0 26px rgba(255,196,70,.38) !important;
+
+    overflow: hidden;
+    pointer-events: none !important;
+}
+#piece-select-msg.active{
+    display: block !important;
+    animation: hudBannerIn .34s cubic-bezier(.2,1.2,.3,1) both;
+}
+#piece-select-msg::before{
+    content: "♛ ";
+    font-size: .92rem;
+}
+#piece-select-msg::after{
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 18%, rgba(255,255,255,.48) 48%, transparent 74%);
+    transform: translateX(-130%);
+    animation: hudShimmer 2.7s ease-in-out infinite;
+    pointer-events: none;
+}
+
+#game-screen #turn-indicator,
+#turn-indicator{
+    position: fixed !important;
+    left: 50% !important;
+    top: max(52px, calc(env(safe-area-inset-top) + 42px)) !important;
+    transform: translateX(-50%) translateZ(0) !important;
+    -webkit-transform: translateX(-50%) translateZ(0) !important;
+    z-index: 79 !important;
+
+    width: max-content !important;
+    max-width: min(68vw, 390px) !important;
+    min-width: 180px;
+    padding: 8px 18px !important;
+    opacity: 1 !important;
+
+    border-radius: 14px !important;
+    border: 1px solid rgba(255,214,90,.55) !important;
+    background:
+        linear-gradient(180deg, rgba(22,30,58,.96), rgba(8,12,28,.97)) !important;
+    color: #ffe7a0 !important;
+
+    font-family: 'Orbitron', sans-serif !important;
+    font-size: .68rem !important;
+    font-weight: 800 !important;
+    letter-spacing: .7px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    box-shadow:
+        0 10px 24px rgba(0,0,0,.42),
+        inset 0 0 14px rgba(255,215,0,.07),
+        0 0 18px rgba(255,196,70,.18) !important;
+
+    pointer-events: none !important;
+}
+#turn-indicator::before{
+    content: "⚡ ";
+}
+
+/* Warna otomatis sesuai isi teks */
+#turn-indicator.ti-ok{
+    border-color: rgba(90,255,150,.7) !important;
+    color: #b8ffd0 !important;
+    box-shadow: 0 10px 24px rgba(0,0,0,.42), 0 0 18px rgba(70,255,150,.22) !important;
+}
+#turn-indicator.ti-bad{
+    border-color: rgba(255,90,110,.75) !important;
+    color: #ffb3bc !important;
+    box-shadow: 0 10px 24px rgba(0,0,0,.42), 0 0 18px rgba(255,70,90,.22) !important;
+}
+#turn-indicator.ti-wait{
+    border-color: rgba(120,190,255,.7) !important;
+    color: #c7e3ff !important;
+}
+
+@keyframes hudBannerIn{
+    from{ opacity:0; transform: translateX(-50%) translateY(-10px) scale(.92); }
+    to{ opacity:1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+@keyframes hudShimmer{
+    0%, 55%{ transform: translateX(-130%); }
+    80%, 100%{ transform: translateX(130%); }
+}
+
+@media (max-width: 768px){
+    #piece-select-msg{
+        top: max(8px, env(safe-area-inset-top)) !important;
+        max-width: 78vw !important;
+        padding: 6px 14px 6px 12px !important;
+        font-size: .58rem !important;
+        letter-spacing: .8px !important;
+    }
+    #game-screen #turn-indicator,
+    #turn-indicator{
+        top: max(42px, calc(env(safe-area-inset-top) + 34px)) !important;
+        max-width: 72vw !important;
+        padding: 6px 12px !important;
+        font-size: .52rem !important;
+        border-radius: 11px !important;
+    }
+}
+</style>
+<style id="chrono-click-fix">
+/* Panel pemain tetap tidak mengganggu papan,
+   tetapi badge Rewind boleh menerima klik. */
+#game-screen .player-side .info-details,
+#game-screen .player-side .player-chrono,
+#game-screen .player-side .chrono-badge,
+#game-screen .player-side .chrono-btn,
+#game-screen #p1-chrono,
+#game-screen #p2-chrono,
+#game-screen #p1-chrono-badge,
+#game-screen #p2-chrono-badge {
+    pointer-events: auto !important;
+}
+
+/* Pastikan badge berada di atas elemen lain dan dapat ditekan */
+#game-screen #p1-chrono,
+#game-screen #p2-chrono,
+#game-screen #p1-chrono-badge,
+#game-screen #p2-chrono-badge {
+    position: relative !important;
+    z-index: 100 !important;
+    cursor: pointer !important;
+    user-select: none;
+}
+
+/* Jika badge dibuat sebagai tombol */
+#game-screen #p1-chrono button,
+#game-screen #p2-chrono button,
+#game-screen #p1-chrono-badge button,
+#game-screen #p2-chrono-badge button {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+</style>
 </head>
 <body>
 
@@ -2131,6 +2442,14 @@
         <span class="btn-text-wrap">
             <span class="btn-title">RANKED ONLINE</span>
             <span class="btn-subtitle">Duel Real-time Global</span>
+        </span>
+        <span class="btn-arrow">→</span>
+    </button>
+        <button class="menu-btn btn-board-shop" onclick="openBoardShop()">
+        <span class="btn-icon">🏝️</span>
+        <span class="btn-text-wrap">
+            <span class="btn-title">TOKO PAPAN</span>
+            <span class="btn-subtitle">Buka Papan Bertema</span>
         </span>
         <span class="btn-arrow">→</span>
     </button>
@@ -2357,6 +2676,9 @@
             </div>
 
             <div class="hp-text" id="p1-hp-text">HP: 100/100</div>
+            <div class="player-soul" id="p1-soul" style="display:none;">
+                💀 <span id="p1-soul-count">0</span>/3
+            </div>
         </div>
     </div>
 </div>
@@ -2371,7 +2693,7 @@
 <!-- PLAYER 2 -->
 <div class="player-side player-side-right">
     <div class="player-info right">
-        <div class="info-avatar" id="p2-avatar">🤖</div>
+        <div class="info-avatar" id="p2-avatar">😈</div>
         <div class="info-details">
             <div class="info-name p2-color" id="p2-display-name">Komputer</div>
 
@@ -2380,6 +2702,9 @@
             </div>
 
             <div class="hp-text" id="p2-hp-text">HP: 100/100</div>
+            <div class="player-soul" id="p2-soul" style="display:none;">
+                💀 <span id="p2-soul-count">0</span>/3
+            </div>
         </div>
     </div>
 </div>
@@ -2451,7 +2776,16 @@
     </button>
 </div>
 </div>
-
+<!-- BOARD SHOP -->
+<div id="board-shop-screen" class="screen">
+    <button class="back-btn" onclick="goHome()">Kembali</button>
+    <div class="game-title" style="font-size:1.9rem;margin-bottom:4px;">Toko Papan Catur</div>
+    <div class="ranked-subtitle" style="margin-bottom:14px;">Papan Bertema Eksklusif</div>
+    <div class="points-display" style="margin:0 0 18px 0;">
+        💎 <span id="shop-points">0</span> Diamond
+    </div>
+    <div id="board-shop-grid" class="board-shop-grid"></div>
+</div>
 <!-- HISTORY -->
 <div id="history-screen" class="screen">
     <button class="back-btn" onclick="goHome()">Kembali</button>
@@ -2701,7 +3035,717 @@ if(cmd.image){
         el.appendChild(d);
     });
 }
+// ==========================================================
+// SISTEM PAPAN CATUR BERTEMA
+// ==========================================================
+const BOARD_THEMES = [
+    {
+        id:'classic', name:'Kayu Klasik', price:0, emoji:'♟️',
+        desc:'Papan kayu standar.',
+        light:0xdecba4, dark:0x6b4226, frame:0x2a1a0a, under:0x6b4226,
+        frameMetal:0.6, frameRough:0.3, tileMetal:0.1, tileRough:0.6,
+        decor:null
+    },
+    {
+        id:'ocean', name:'Samudra Biru', price:5000, emoji:'🐬',
+        desc:'Lumba-lumba melompat & bingkai ombak berbuih.',
+                light:0xE6F6FA, dark:0x1C6E8C, frame:0x0A3A4A, under:0x08303F,
+        frameMetal:0.4, frameRough:0.35, tileMetal:0.15, tileRough:0.45,
+        decor:'ocean'
+    },
+    {
+        id:'forest', name:'Hutan Ajaib', price:9000, emoji:'🌳',
+        desc:'Pohon rindang di tiap sudut & jamur bercahaya.',
+        light:0xDCE8C4, dark:0x3E6B32, frame:0x2B1C0E, under:0x241A10,
+        frameMetal:0.25, frameRough:0.6, tileMetal:0.05, tileRough:0.7,
+        decor:'forest'
+    },
+    {
+        id:'desert', name:'Gurun Firaun', price:14000, emoji:'🐫',
+        desc:'Piramida emas, pohon kurma & pasir keemasan.',
+        light:0xF3E2B8, dark:0xB0813C, frame:0x6E4A18, under:0x5A3C12,
+        frameMetal:0.55, frameRough:0.4, tileMetal:0.2, tileRough:0.55,
+        decor:'desert'
+    },
+    {
+        id:'dragon', name:'Sarang Naga', price:22000, emoji:'🐉',
+        desc:'Duri naga, tanduk & kristal api menyala.',
+        light:0x4A3038, dark:0x1E1116, frame:0x2A0A0A, under:0x1A0606,
+        frameMetal:0.75, frameRough:0.28, tileMetal:0.35, tileRough:0.4,
+        decor:'dragon'
+    },
+    {
+        id:'galaxy', name:'Galaksi Nebula', price:35000, emoji:'🪐',
+        desc:'Planet bercincin, bintang & kabut kosmik.',
+        light:0x3B2E63, dark:0x140E2B, frame:0x0C0820, under:0x080513,
+        frameMetal:0.8, frameRough:0.2, tileMetal:0.45, tileRough:0.3,
+        decor:'galaxy'
+    }
+];
 
+function getUnlockedBoards(){
+    try{ return JSON.parse(localStorage.getItem('mc_unlocked_boards') || '[]'); }
+    catch(e){ return []; }
+}
+function isBoardUnlocked(t){
+    return t.price === 0 || getUnlockedBoards().includes(t.id);
+}
+function getActiveBoardId(){
+    return localStorage.getItem('mc_active_board') || 'classic';
+}
+function getActiveBoardTheme(){
+    const id = getActiveBoardId();
+    const t = BOARD_THEMES.find(x => x.id === id);
+    if(t && isBoardUnlocked(t)) return t;
+    return BOARD_THEMES[0];
+}
+function setActiveBoard(id){
+    localStorage.setItem('mc_active_board', id);
+}
+
+async function unlockBoard(id){
+    const t = BOARD_THEMES.find(x => x.id === id);
+    if(!t || isBoardUnlocked(t)) return true;
+    if(getPoints() < t.price) return false;
+
+    const ok = await spendPointsSecure(t.price, 'board_' + t.id);
+    if(!ok) return false;
+
+    const list = getUnlockedBoards();
+    if(!list.includes(t.id)) list.push(t.id);
+    localStorage.setItem('mc_unlocked_boards', JSON.stringify(list));
+    return true;
+}
+
+function openBoardShop(){
+    showScreen('board-shop-screen');
+    renderBoardShop();
+}
+
+function boardPreviewStyle(t){
+    const L = '#' + t.light.toString(16).padStart(6,'0');
+    const D = '#' + t.dark.toString(16).padStart(6,'0');
+    return `background-color:${L};
+            background-image:
+              linear-gradient(45deg,${D} 25%,transparent 25%,transparent 75%,${D} 75%),
+              linear-gradient(45deg,${D} 25%,transparent 25%,transparent 75%,${D} 75%);
+            background-size:22px 22px;
+            background-position:0 0,11px 11px;`;
+}
+
+function renderBoardShop(){
+    const pts = getPoints();
+    const el = document.getElementById('board-shop-grid');
+    const ptsEl = document.getElementById('shop-points');
+    if(ptsEl) ptsEl.textContent = pts.toLocaleString('id-ID');
+    if(!el) return;
+
+    const activeId = getActiveBoardId();
+    el.innerHTML = '';
+
+    BOARD_THEMES.forEach(t => {
+        const unlocked = isBoardUnlocked(t);
+        const isActive = activeId === t.id && unlocked;
+        const affordable = pts >= t.price;
+
+        const card = document.createElement('div');
+        card.className = 'board-card'
+            + (isActive ? ' active-board' : '')
+            + (!unlocked ? ' locked-board' : '');
+
+        let btn;
+        if(isActive){
+            btn = `<button class="board-btn bb-active">✔ SEDANG DIPAKAI</button>`;
+        }else if(unlocked){
+            btn = `<button class="board-btn bb-use" onclick="chooseBoard('${t.id}')">PAKAI PAPAN</button>`;
+        }else if(affordable){
+            btn = `<button class="board-btn bb-buy" onclick="buyBoard('${t.id}')">💎 ${t.price.toLocaleString('id-ID')}</button>`;
+        }else{
+            btn = `<button class="board-btn bb-poor">🔒 ${t.price.toLocaleString('id-ID')} 💎</button>`;
+        }
+
+        card.innerHTML = `
+            <div class="board-preview" style="${boardPreviewStyle(t)}">
+                <div class="board-preview-emoji">${unlocked ? t.emoji : '🔒'}</div>
+            </div>
+            <div class="board-name">${t.name}</div>
+            <div class="board-desc">${t.desc}</div>
+            ${btn}
+        `;
+        el.appendChild(card);
+    });
+}
+
+function chooseBoard(id){
+    setActiveBoard(id);
+    renderBoardShop();
+    const t = BOARD_THEMES.find(x => x.id === id);
+    alert('✅ Papan "' + (t ? t.name : id) + '" aktif.\nAkan terlihat saat kamu memulai pertandingan.');
+}
+
+async function buyBoard(id){
+    const t = BOARD_THEMES.find(x => x.id === id);
+    if(!t) return;
+
+    const pts = getPoints();
+    if(pts < t.price){
+        alert('💎 Diamond belum cukup.\nButuh: ' + t.price.toLocaleString('id-ID') +
+              '\nPunya: ' + pts.toLocaleString('id-ID'));
+        return;
+    }
+
+    const ok = confirm('Beli papan "' + t.name + '"?\n\n' +
+        'Harga: ' + t.price.toLocaleString('id-ID') + ' 💎\n' +
+        'Sisa nanti: ' + (pts - t.price).toLocaleString('id-ID') + ' 💎');
+    if(!ok) return;
+
+    const bought = await unlockBoard(id);
+    if(bought){
+        setActiveBoard(id);
+        updatePointsDisplay();
+        renderBoardShop();
+        alert('🎉 Berhasil! Papan "' + t.name + '" sudah aktif.');
+    }else{
+        alert('❌ Pembelian gagal. Saldo server tidak cukup atau koneksi terputus.');
+        renderBoardShop();
+    }
+}
+// ==========================================================
+// DEKORASI 3D PAPAN (procedural, tanpa file gambar)
+// ==========================================================
+let boardDecorGroup = null;
+
+function decorEdgePos(x, z, rot){
+    return {
+        x: x*Math.cos(rot) - z*Math.sin(rot),
+        z: x*Math.sin(rot) + z*Math.cos(rot)
+    };
+}
+
+function buildBoardDecor(theme){
+    if(!theme) return;
+    const g = new THREE.Group();
+    const EDGE = (BOARD_SIZE*TILE_SIZE)/2 + 0.62;
+    const Y = -0.09;
+
+    // Watermark besar di tengah papan, sesuai tema
+    addBoardWatermark(g, theme);
+
+    if(theme.decor === 'ocean')  decorOcean(g, EDGE, Y);
+    if(theme.decor === 'forest') decorForest(g, EDGE, Y);
+    if(theme.decor === 'desert') decorDesert(g, EDGE, Y);
+    if(theme.decor === 'dragon') decorDragon(g, EDGE, Y);
+    if(theme.decor === 'galaxy') decorGalaxy(g, EDGE, Y);
+
+    boardDecorGroup = g;
+    scene.add(g);
+}
+
+function addBoardWatermark(group, theme){
+    if(!theme || !theme.decor) return;
+
+    const iconMap = {
+        ocean:  '🐬',
+        forest: '🌳',
+        desert: '🐫',
+        dragon: '🐉',
+        galaxy: '🪐'
+    };
+    const icon = iconMap[theme.decor] || theme.emoji;
+    if(!icon) return;
+
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '300px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+    ctx.globalAlpha = 0.22;
+    ctx.fillText(icon, size/2, size/2 + 18);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+
+    const boardW = BOARD_SIZE * TILE_SIZE;
+    const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(boardW * 0.70, boardW * 0.70),
+        new THREE.MeshBasicMaterial({
+            map: tex,
+            transparent: true,
+            opacity: 0.55,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            polygonOffset: true,
+            polygonOffsetFactor: -2,
+            polygonOffsetUnits: -2
+        })
+    );
+
+    // Sedikit di atas kotak papan, di bawah bidak
+    plane.rotation.x = -Math.PI / 2;
+    plane.position.y = 0.026;
+    plane.renderOrder = 2;
+    plane.name = 'BoardWatermark';
+    group.add(plane);
+}
+
+/* ---------- SAMUDRA ---------- */
+function makeDolphin(body, belly, eye){
+    const d = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.3,16,14), body);
+    b.scale.set(0.6,0.55,1.6); d.add(b);
+    const bl = new THREE.Mesh(new THREE.SphereGeometry(0.28,14,12), belly);
+    bl.scale.set(0.5,0.34,1.4); bl.position.y=-0.08; d.add(bl);
+    const sn = new THREE.Mesh(new THREE.ConeGeometry(0.11,0.4,12), body);
+    sn.rotation.x=Math.PI/2; sn.position.set(0,0.01,0.6); d.add(sn);
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.15,0.34,4), body);
+    fin.scale.set(0.45,1,1.5); fin.position.set(0,0.24,-0.04); fin.rotation.x=-0.4; d.add(fin);
+    for(let s=-1;s<=1;s+=2){
+        const sf = new THREE.Mesh(new THREE.ConeGeometry(0.1,0.3,4), body);
+        sf.scale.set(0.38,1,1.15); sf.position.set(s*0.17,-0.05,0.16);
+        sf.rotation.z=s*0.95; sf.rotation.x=0.45; d.add(sf);
+    }
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.1,0.3,8), body);
+    st.rotation.x=Math.PI/2; st.position.set(0,0.01,-0.6); d.add(st);
+    for(let s=-1;s<=1;s+=2){
+        const fl = new THREE.Mesh(new THREE.ConeGeometry(0.11,0.3,4), body);
+        fl.scale.set(0.32,1,1); fl.position.set(s*0.15,0.02,-0.78);
+        fl.rotation.z=s*1.35; fl.rotation.x=-0.25; d.add(fl);
+    }
+    for(let s=-1;s<=1;s+=2){
+        const e = new THREE.Mesh(new THREE.SphereGeometry(0.028,8,8), eye);
+        e.position.set(s*0.13,0.06,0.36); d.add(e);
+    }
+    return d;
+}
+
+function decorOcean(g, E, Y){
+    const wave  = new THREE.MeshPhongMaterial({color:0x2FA8D6, specular:0xBFF2FF, shininess:95, emissive:0x061E2A});
+    const foam  = new THREE.MeshPhongMaterial({color:0xEAF9FF, specular:0xFFFFFF, shininess:120});
+    const skin  = new THREE.MeshPhongMaterial({color:0x83BEDD, specular:0xEAF8FF, shininess:115, emissive:0x0A1E2C});
+    const belly = new THREE.MeshPhongMaterial({color:0xF4FCFF, shininess:70});
+    const eye   = new THREE.MeshPhongMaterial({color:0x101820});
+
+    for(let s=0;s<4;s++){
+        const rot = s*Math.PI/2;
+        for(let i=-7;i<=7;i++){
+            const h = 0.5 + Math.abs(Math.sin(i*0.85))*0.55;
+            const p = decorEdgePos(i*1.2, E, rot);
+            const w = new THREE.Mesh(new THREE.SphereGeometry(0.3,12,10,0,Math.PI*2,0,Math.PI/2), wave);
+            w.scale.set(1.2,h,0.9); w.position.set(p.x,Y,p.z); g.add(w);
+            if(i%2===0){
+                const f = new THREE.Mesh(new THREE.SphereGeometry(0.1,8,8), foam);
+                f.position.set(p.x, Y+h*0.3+0.05, p.z); g.add(f);
+            }
+        }
+    }
+    const C = E - 0.05;
+    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([sx,sz])=>{
+        const d = makeDolphin(skin, belly, eye);
+        d.position.set(sx*C, Y+0.95, sz*C);
+        d.rotation.y = Math.atan2(-sx, -sz);
+        d.rotation.x = -0.55;
+        d.scale.setScalar(1.05);
+        g.add(d);
+        const sp = new THREE.Mesh(new THREE.TorusGeometry(0.42,0.09,8,20), foam);
+        sp.rotation.x = Math.PI/2;
+        sp.position.set(sx*C, Y+0.1, sz*C);
+        g.add(sp);
+    });
+}
+
+/* ---------- HUTAN ---------- */
+function decorForest(g, E, Y){
+    const bark = new THREE.MeshPhongMaterial({color:0x5A3B1E, shininess:12});
+    const leaf = new THREE.MeshPhongMaterial({color:0x2F7A34, specular:0x88DD88, shininess:35, emissive:0x061A08});
+    const leaf2= new THREE.MeshPhongMaterial({color:0x49A045, specular:0xAAFFAA, shininess:45});
+    const cap  = new THREE.MeshPhongMaterial({color:0xD9484C, specular:0xFFC0C0, shininess:70, emissive:0x2A0808});
+    const stem = new THREE.MeshPhongMaterial({color:0xF2E6CE, shininess:30});
+
+    const C = E - 0.05;
+    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([sx,sz])=>{
+        const t = new THREE.Group();
+        const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.22,0.9,10), bark);
+        tr.position.y=0.45; t.add(tr);
+        [[0.62,0.75,1.2],[0.5,0.62,1.75],[0.36,0.5,2.2]].forEach(([r,h,y])=>{
+            const c = new THREE.Mesh(new THREE.ConeGeometry(r,h,12), y>1.9?leaf2:leaf);
+            c.position.y=y; t.add(c);
+        });
+        t.position.set(sx*C, Y, sz*C);
+        g.add(t);
+    });
+
+    for(let s=0;s<4;s++){
+        const rot = s*Math.PI/2;
+        for(let i=-6;i<=6;i++){
+            const p = decorEdgePos(i*1.4, E, rot);
+            if(Math.abs(i)%3===0){
+                const m = new THREE.Group();
+                const st = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.22,8), stem);
+                st.position.y=0.11; m.add(st);
+                const cp = new THREE.Mesh(new THREE.SphereGeometry(0.17,12,10,0,Math.PI*2,0,Math.PI/2), cap);
+                cp.position.y=0.22; m.add(cp);
+                m.position.set(p.x,Y,p.z); g.add(m);
+            }else{
+                const l = new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8), leaf);
+                l.scale.set(1.3,0.35,0.85);
+                l.rotation.y = i*0.7;
+                l.position.set(p.x,Y+0.06,p.z); g.add(l);
+            }
+        }
+    }
+}
+
+/* ---------- GURUN ---------- */
+function decorDesert(g, E, Y){
+    const stone = new THREE.MeshPhongMaterial({color:0xD9B76A, specular:0xFFF0C0, shininess:55});
+    const gold  = new THREE.MeshPhongMaterial({color:0xD4A72C, specular:0xFFF3B0, shininess:110, emissive:0x2A1800});
+    const trunk = new THREE.MeshPhongMaterial({color:0x7A5A2E, shininess:18});
+    const palm  = new THREE.MeshPhongMaterial({color:0x3F8A45, specular:0x9FE39F, shininess:40});
+    const sand  = new THREE.MeshPhongMaterial({color:0xE8CE93, shininess:8});
+
+    const C = E - 0.05;
+    [[1,1],[-1,-1]].forEach(([sx,sz])=>{
+        const p = new THREE.Mesh(new THREE.ConeGeometry(0.95,1.5,4), stone);
+        p.rotation.y = Math.PI/4;
+        p.position.set(sx*C, Y+0.75, sz*C);
+        g.add(p);
+        const t = new THREE.Mesh(new THREE.ConeGeometry(0.22,0.3,4), gold);
+        t.rotation.y = Math.PI/4;
+        t.position.set(sx*C, Y+1.62, sz*C);
+        g.add(t);
+    });
+    [[1,-1],[-1,1]].forEach(([sx,sz])=>{
+        const tr = new THREE.Group();
+        for(let i=0;i<5;i++){
+            const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.13,0.32,8), trunk);
+            seg.position.set(i*0.05, 0.16+i*0.3, 0);
+            seg.rotation.z = -i*0.05;
+            tr.add(seg);
+        }
+        for(let i=0;i<7;i++){
+            const a=(i/7)*Math.PI*2;
+            const lf = new THREE.Mesh(new THREE.ConeGeometry(0.13,0.75,5), palm);
+            lf.scale.set(0.5,1,1);
+            lf.position.set(0.2+Math.cos(a)*0.34, 1.72, Math.sin(a)*0.34);
+            lf.rotation.z = Math.PI/2 - 0.55;
+            lf.rotation.y = -a;
+            tr.add(lf);
+        }
+        tr.position.set(sx*C, Y, sz*C);
+        g.add(tr);
+    });
+    for(let s=0;s<4;s++){
+        const rot=s*Math.PI/2;
+        for(let i=-6;i<=6;i++){
+            const p = decorEdgePos(i*1.4, E, rot);
+            const d = new THREE.Mesh(new THREE.SphereGeometry(0.26,10,8,0,Math.PI*2,0,Math.PI/2), sand);
+            d.scale.set(1.4,0.42,1);
+            d.position.set(p.x,Y,p.z); g.add(d);
+            if(i%3===0){
+                const o = new THREE.Mesh(new THREE.SphereGeometry(0.07,10,10), gold);
+                o.position.set(p.x,Y+0.16,p.z); g.add(o);
+            }
+        }
+    }
+}
+
+/* ---------- NAGA ---------- */
+/* ---------- NAGA (ular naga melingkari papan) ---------- */
+function makeDragonHead(scaleM, horn, fire, ember){
+    const h = new THREE.Group();
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.26,16,14), scaleM);
+    head.scale.set(0.9,0.85,1.25); h.add(head);
+
+    const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.2,0.45,10), scaleM);
+    snout.rotation.x=Math.PI/2; snout.position.set(0,-0.03,0.42); h.add(snout);
+
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.26,0.1,0.36), scaleM);
+    jaw.position.set(0,-0.15,0.34); h.add(jaw);
+
+    for(let s=-1;s<=1;s+=2){
+        const hn = new THREE.Mesh(new THREE.ConeGeometry(0.07,0.52,6), horn);
+        hn.position.set(s*0.15,0.28,-0.08);
+        hn.rotation.x=0.6; hn.rotation.z=-s*0.3; h.add(hn);
+    }
+    for(let s=-1;s<=1;s+=2){
+        const br = new THREE.Mesh(new THREE.ConeGeometry(0.04,0.18,5), horn);
+        br.position.set(s*0.13,0.11,0.16); br.rotation.x=-0.4; h.add(br);
+    }
+    for(let s=-1;s<=1;s+=2){
+        const e = new THREE.Mesh(new THREE.SphereGeometry(0.06,10,10), fire);
+        e.position.set(s*0.16,0.08,0.28); h.add(e);
+        const g2 = new THREE.Mesh(new THREE.SphereGeometry(0.028,8,8), ember);
+        g2.position.set(s*0.16,0.08,0.33); h.add(g2);
+    }
+    for(let s=-1;s<=1;s+=2){
+        const t = new THREE.Mesh(new THREE.ConeGeometry(0.03,0.13,4), ember);
+        t.position.set(s*0.09,-0.13,0.56); t.rotation.x=Math.PI; h.add(t);
+    }
+    return h;
+}
+
+/* ---------- PATUNG NAGA GOTHIC SANGAT KEREN DI 4 SUDUT ---------- */
+function buildCornerDragonStatue(g, sx, sz, E, Y, scaleM, horn, fire, ember) {
+    const D = new THREE.Group();
+
+    // --- Batu tumpuan ---
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.46, 0.34, 8), scaleM);
+    base.position.y = 0.17;
+    D.add(base);
+
+    // --- Badan meringkuk ---
+    const coil = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.13, 8, 22), scaleM);
+    coil.rotation.x = Math.PI / 2;
+    coil.position.y = 0.4;
+    D.add(coil);
+
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 12), scaleM);
+    body.scale.set(1.05, 0.9, 1.15);
+    body.position.set(0, 0.5, -0.02);
+    D.add(body);
+
+    // --- Leher panjang melengkung ke atas (ciri khas naga) ---
+    const neckPts = [
+        [0.00, 0.62, 0.02],
+        [0.02, 0.80, 0.10],
+        [0.03, 0.98, 0.14],
+        [0.02, 1.16, 0.11],
+        [0.00, 1.32, 0.02],
+        [-0.01, 1.44, -0.08]
+    ];
+    neckPts.forEach((pt, i) => {
+        const r = 0.135 - i * 0.013;
+        const seg = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), scaleM);
+        seg.position.set(pt[0], pt[1], pt[2]);
+        D.add(seg);
+
+        // duri punggung leher
+        const spine = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.16, 4), horn);
+        spine.position.set(pt[0], pt[1] + r * 0.85, pt[2] - r * 0.7);
+        spine.rotation.x = -0.5;
+        D.add(spine);
+    });
+
+    // --- Kepala naga (moncong panjang menghadap bawah-depan) ---
+    const H = new THREE.Group();
+    H.position.set(-0.01, 1.52, -0.10);
+    H.rotation.x = 0.55;
+
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 12), scaleM);
+    skull.scale.set(0.85, 0.82, 1.35);
+    H.add(skull);
+
+    const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.10, 0.32, 8), scaleM);
+    snout.rotation.x = Math.PI / 2;
+    snout.position.set(0, -0.02, 0.26);
+    H.add(snout);
+
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), scaleM);
+    nose.position.set(0, -0.01, 0.42);
+    H.add(nose);
+
+    // rahang terbuka
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.05, 0.30), scaleM);
+    jaw.position.set(0, -0.13, 0.24);
+    jaw.rotation.x = -0.28;
+    H.add(jaw);
+
+    // taring
+    for (let s = -1; s <= 1; s += 2) {
+        const t1 = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.09, 4), horn);
+        t1.position.set(s * 0.045, -0.07, 0.38);
+        t1.rotation.x = Math.PI;
+        H.add(t1);
+        const t2 = new THREE.Mesh(new THREE.ConeGeometry(0.016, 0.07, 4), horn);
+        t2.position.set(s * 0.045, -0.15, 0.34);
+        H.add(t2);
+    }
+
+    // tanduk panjang ke belakang
+    for (let s = -1; s <= 1; s += 2) {
+        const hn = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.44, 6), horn);
+        hn.position.set(s * 0.09, 0.10, -0.16);
+        hn.rotation.x = -1.15;
+        hn.rotation.z = -s * 0.30;
+        H.add(hn);
+    }
+
+    // sungut / kumis naga oriental
+    for (let s = -1; s <= 1; s += 2) {
+        const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.004, 0.36, 5), horn);
+        wh.position.set(s * 0.07, -0.02, 0.30);
+        wh.rotation.z = s * 0.55;
+        wh.rotation.x = -0.35;
+        H.add(wh);
+    }
+
+    // mata menyala
+    for (let s = -1; s <= 1; s += 2) {
+        const ey = new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 8), fire);
+        ey.position.set(s * 0.085, 0.045, 0.10);
+        H.add(ey);
+        const pu = new THREE.Mesh(new THREE.SphereGeometry(0.015, 6, 6), ember);
+        pu.position.set(s * 0.085, 0.045, 0.13);
+        H.add(pu);
+    }
+    D.add(H);
+
+    // --- Sayap kelelawar terbentang ---
+    for (let s = -1; s <= 1; s += 2) {
+        const W = new THREE.Group();
+
+        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.038, 0.62, 6), scaleM);
+        arm.rotation.z = Math.PI / 2;
+        arm.position.set(s * 0.31, 0, 0);
+        W.add(arm);
+
+        for (let f = 0; f < 3; f++) {
+            const memb = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.52, 3), scaleM);
+            memb.scale.set(1, 1, 0.10);
+            memb.position.set(s * (0.26 + f * 0.16), -0.20 - f * 0.05, -0.05);
+            memb.rotation.z = s * (0.32 + f * 0.22);
+            memb.rotation.x = 0.16;
+            W.add(memb);
+
+            const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.020, 0.44, 5), horn);
+            rib.position.set(s * (0.28 + f * 0.16), -0.16 - f * 0.05, -0.03);
+            rib.rotation.z = s * (0.36 + f * 0.22);
+            W.add(rib);
+        }
+
+        const claw = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.13, 4), horn);
+        claw.position.set(s * 0.60, 0.14, 0);
+        claw.rotation.z = -s * 0.65;
+        W.add(claw);
+
+        W.position.set(0, 0.68, -0.16);
+        W.rotation.y = -s * 0.42;
+        W.rotation.z = -s * 0.20;
+        D.add(W);
+    }
+
+    // --- Ekor menjulur keluar ---
+    for (let i = 0; i < 6; i++) {
+        const tr = 0.10 - i * 0.014;
+        const seg = new THREE.Mesh(new THREE.SphereGeometry(tr, 10, 8), scaleM);
+        seg.position.set(0.10 + i * 0.13, 0.30 - i * 0.025, -0.34 - i * 0.14);
+        D.add(seg);
+    }
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.24, 5), horn);
+    tip.position.set(0.90, 0.15, -1.16);
+    tip.rotation.x = -0.85;
+    tip.rotation.z = -0.45;
+    D.add(tip);
+
+    // --- Kaki depan mencengkeram ---
+    for (let s = -1; s <= 1; s += 2) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.26, 6), scaleM);
+        leg.position.set(s * 0.20, 0.28, 0.20);
+        leg.rotation.x = 0.35;
+        D.add(leg);
+        for (let c = -1; c <= 1; c++) {
+            const cl = new THREE.Mesh(new THREE.ConeGeometry(0.020, 0.10, 4), horn);
+            cl.position.set(s * 0.20 + c * 0.05, 0.15, 0.30);
+            cl.rotation.x = 1.25;
+            D.add(cl);
+        }
+    }
+
+    D.position.set(sx * E, Y, sz * E);
+    D.rotation.y = Math.atan2(-sx, -sz);
+    D.scale.setScalar(1.25);
+    g.add(D);
+}
+
+function decorDragon(g, E, Y){
+    const scaleM = new THREE.MeshPhongMaterial({
+        color: 0x4A0F0F,       // Merah obsidian naga gelap
+        specular: 0xFF5533,    // Kilau api merah-oranye
+        shininess: 90,
+        emissive: 0x1A0303
+    });
+    const horn = new THREE.MeshPhongMaterial({
+        color: 0xD4A72C,       // Tanduk emas mewah
+        specular: 0xFFFFFF,
+        shininess: 120,
+        emissive: 0x2A1500
+    });
+    const fire = new THREE.MeshPhongMaterial({
+        color: 0xFF4500,       // Mata api merah menyala
+        emissive: 0xFF0000,
+        emissiveIntensity: 1.5
+    });
+    const ember = new THREE.MeshPhongMaterial({
+        color: 0xFFD700,       // Pupil emas bersinar
+        emissive: 0xFFD700,
+        emissiveIntensity: 2.0
+    });
+
+    // Tempatkan 4 Patung Naga Sudut Raksasa
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
+        buildCornerDragonStatue(g, sx, sz, E - 0.1, Y, scaleM, horn, fire, ember);
+    });
+
+    // Tambahkan duri obsidian pelindung di sepanjang pinggiran bingkai
+    for(let s = 0; s < 4; s++){
+        const rot = s * Math.PI / 2;
+        for(let i = -5; i <= 5; i++){
+            if(Math.abs(i) === 5) continue; // Jangan menabrak patung naga di sudut
+            const p = decorEdgePos(i * 1.5, E, rot);
+            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.35, 5), scaleM);
+            spike.position.set(p.x, Y + 0.15, p.z);
+            spike.rotation.y = rot;
+            g.add(spike);
+        }
+    }
+}
+
+/* ---------- GALAKSI ---------- */
+function decorGalaxy(g, E, Y){
+    const ring   = new THREE.MeshPhongMaterial({color:0xB98CFF, specular:0xFFFFFF, shininess:130, emissive:0x2A1050});
+    const planet = new THREE.MeshPhongMaterial({color:0x4E6BE0, specular:0xCFE0FF, shininess:110, emissive:0x0A1440});
+    const star   = new THREE.MeshPhongMaterial({color:0xFFF6C8, specular:0xFFFFFF, shininess:150, emissive:0x6A5A10});
+    const dust   = new THREE.MeshPhongMaterial({color:0x7B3FA8, specular:0xE0B0FF, shininess:90, emissive:0x1E0A30});
+
+    const C = E - 0.05;
+    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([sx,sz],i)=>{
+        const pl = new THREE.Group();
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.44,20,16), planet);
+        b.position.y=0.6; pl.add(b);
+        const r1 = new THREE.Mesh(new THREE.TorusGeometry(0.78,0.05,8,32), ring);
+        r1.rotation.x = Math.PI/2 - 0.35;
+        r1.rotation.z = i*0.4;
+        r1.position.y=0.6; pl.add(r1);
+        const r2 = new THREE.Mesh(new THREE.TorusGeometry(0.95,0.028,8,32), ring);
+        r2.rotation.x = Math.PI/2 - 0.35;
+        r2.rotation.z = i*0.4;
+        r2.position.y=0.6; pl.add(r2);
+        pl.position.set(sx*C, Y, sz*C);
+        g.add(pl);
+    });
+    for(let s=0;s<4;s++){
+        const rot=s*Math.PI/2;
+        for(let i=-7;i<=7;i++){
+            const p = decorEdgePos(i*1.2, E, rot);
+            if(i%2===0){
+                const st = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), star);
+                st.position.set(p.x, Y+0.22+Math.abs(Math.sin(i))*0.14, p.z);
+                st.rotation.set(i*0.4,i*0.3,i*0.2);
+                g.add(st);
+            }else{
+                const d = new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8), dust);
+                d.scale.set(1.5,0.3,0.9);
+                d.position.set(p.x, Y+0.06, p.z);
+                d.rotation.y = rot;
+                g.add(d);
+            }
+        }
+    }
+}
 // ========================================
 // 3D VARS
 // ========================================
@@ -2938,46 +3982,43 @@ coolRimLight.position.set(0, 7, -10);
 coolRimLight.castShadow = false;
 scene.add(coolRimLight); 
 
+        // ===== PAPAN MENGIKUTI TEMA AKTIF =====
+    const BT = getActiveBoardTheme();
+
     // Board frame
     const frameGeo = new THREE.BoxGeometry(BOARD_SIZE*TILE_SIZE + 1.4, 0.5, BOARD_SIZE*TILE_SIZE + 1.4);
-    const frameMat=new THREE.MeshStandardMaterial({color:0x2a1a0a, metalness:0.6, roughness:0.3});
-    const frame=new THREE.Mesh(frameGeo, frameMat);
-    frame.position.y=-0.34; frame.receiveShadow=false;
+    const frameMat = new THREE.MeshStandardMaterial({
+        color: BT.frame, metalness: BT.frameMetal, roughness: BT.frameRough
+    });
+    const frame = new THREE.Mesh(frameGeo, frameMat);
+    frame.position.y = -0.34; frame.receiveShadow = false;
     scene.add(frame);
 
-    // FIX 11.13: alas papan tanpa celah di bawah semua tile.
-    // Tile sedikit overlap untuk mencegah seam horizontal akibat rasterisasi
-    // perspektif pada layar/device-pixel-ratio HP.
-    // FIX 12: alas dibuat lebih tebal dan diturunkan agar permukaan atasnya
-    // TIDAK pernah sebidang dengan dasar tile (jarak aman > 0.15 unit).
+    // Alas papan
     const boardUnderlayGeo = new THREE.BoxGeometry(BOARD_SIZE*TILE_SIZE, 0.40, BOARD_SIZE*TILE_SIZE);
-    const boardUnderlayMat = new THREE.MeshStandardMaterial({color:0x6b4226, metalness:0.05, roughness:0.75});
+    const boardUnderlayMat = new THREE.MeshStandardMaterial({
+        color: BT.under, metalness:0.05, roughness:0.75
+    });
     const boardUnderlay = new THREE.Mesh(boardUnderlayGeo, boardUnderlayMat);
-    boardUnderlay.renderOrder=0;
+    boardUnderlay.renderOrder = 0;
     boardUnderlay.position.set(0, -0.30, 0);
-    boardUnderlay.receiveShadow=false;
+    boardUnderlay.receiveShadow = false;
     scene.add(boardUnderlay);
 
+    // Dekorasi 3D sesuai tema
+    buildBoardDecor(BT);
+
     // Tiles
-    // FIX 12: AKAR MASALAH GARIS DI HP.
-    // Sebelumnya tiap tile dibuat +0.012 lebih besar agar "tidak ada celah",
-    // sehingga 64 kotak saling bertumpuk. Dua permukaan pada kedalaman hampir
-    // sama = z-fighting. Di laptop (depth 24-bit) tidak terlihat; di HP
-    // (depth 16-bit) muncul sebagai garis yang berpindah-pindah saat kamera
-    // atau komposisi frame berubah.
-    // Solusi: tile berukuran PERSIS TILE_SIZE (tanpa overlap), dipasang di atas
-    // alas papan, dengan polygonOffset supaya tetap menang terhadap alas.
-    boardMeshes=[];
+    boardMeshes = [];
     const tileGeo = new THREE.BoxGeometry(TILE_SIZE, 0.12, TILE_SIZE);
     const tileMatLight = new THREE.MeshStandardMaterial({
-    color:0xdecba4, metalness:0.1, roughness:0.6,
-    polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1
-});
-
-const tileMatDark = new THREE.MeshStandardMaterial({
-    color:0x6b4226, metalness:0.1, roughness:0.6,
-    polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1
-});
+        color: BT.light, metalness: BT.tileMetal, roughness: BT.tileRough,
+        polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1
+    });
+    const tileMatDark = new THREE.MeshStandardMaterial({
+        color: BT.dark, metalness: BT.tileMetal, roughness: BT.tileRough,
+        polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1
+    });
     for(let r=0;r<8;r++){
         boardMeshes[r]=[];
         for(let c=0;c<8;c++){
@@ -4881,25 +5922,44 @@ function resetSoulStreak(playerIdx){
 }
 function updateAbilityButtons(){
     const panel = document.getElementById('ability-panel');
+    const btnRewind = document.getElementById('btn-rewind');
+    const oldSoul = document.getElementById('soul-counter');
+    const p1Soul = document.getElementById('p1-soul');
+    const p2Soul = document.getElementById('p2-soul');
+    const p1SoulCount = document.getElementById('p1-soul-count');
+    const p2SoulCount = document.getElementById('p2-soul-count');
+
+    // Badge lama selalu disembunyikan
+    if(oldSoul) oldSoul.style.display = 'none';
+
+    function setSoulBadge(el, countEl, playerIdx){
+        if(!el || !countEl) return false;
+        const isNecro = !!(GS.players[playerIdx] && GS.players[playerIdx].commander &&
+                           GS.players[playerIdx].commander.id === 'necromancer');
+        if(GS.gameOver || !isNecro){
+            el.style.display = 'none';
+            el.classList.remove('is-on');
+            return false;
+        }
+        countEl.textContent = GS.soulStreak[playerIdx] || 0;
+        el.style.display = 'inline-block';
+        el.classList.add('is-on');
+        return true;
+    }
+
     if(GS.gameOver){
         if(panel){ panel.classList.remove('active'); panel.style.display='none'; }
-        const sc=document.getElementById('soul-counter'); if(sc) sc.style.display='none';
-        const rb=document.getElementById('btn-rewind'); if(rb) rb.style.display='none';
+        if(btnRewind) btnRewind.style.display='none';
+        setSoulBadge(p1Soul, p1SoulCount, 0);
+        setSoulBadge(p2Soul, p2SoulCount, 1);
         return;
     }
-    const btnRewind = document.getElementById('btn-rewind');
-    const soulCounter = document.getElementById('soul-counter');
-    const soulCount = document.getElementById('soul-count');
-    
-    let anyActive = false;
-    
-    // Cek player 0 & 1 apakah punya commander spesial
+
     let showRewind = false;
-    let showSoul = false;
-    let currentPlayerIdx = GS.answerer >= 0 ? GS.answerer : GS.currentTurn;
-    
-    // Chronomancer: hanya tampil saat gilirannya, belum dipakai, dan ada lastMove lawan
-    if(currentPlayerIdx >= 0 && GS.players[currentPlayerIdx] &&
+    const currentPlayerIdx = GS.answerer >= 0 ? GS.answerer : GS.currentTurn;
+
+    // Chronomancer: tetap 1 tombol di bawah, hanya saat giliran pemain itu
+    if(btnRewind && currentPlayerIdx >= 0 && GS.players[currentPlayerIdx] &&
        GS.players[currentPlayerIdx].commander.id === 'chronomancer'){
         if(!GS.chronoUsed[currentPlayerIdx] && GS.lastMove && GS.lastMove.player !== currentPlayerIdx){
             showRewind = true;
@@ -4911,24 +5971,21 @@ function updateAbilityButtons(){
             btnRewind.disabled = true;
         }
     }
-    
-    // Necromancer counter
-    for(let i=0; i<2; i++){
-        if(GS.players[i] && GS.players[i].commander.id === 'necromancer'){
-            showSoul = true;
-            soulCount.textContent = GS.soulStreak[i];
+
+    if(btnRewind) btnRewind.style.display = showRewind ? 'flex' : 'none';
+
+    // Soul terpisah per pemain. Boleh keduanya Necromancer sekaligus.
+    setSoulBadge(p1Soul, p1SoulCount, 0);
+    setSoulBadge(p2Soul, p2SoulCount, 1);
+
+    if(panel){
+        if(showRewind){
+            panel.style.display = 'flex';
+            panel.classList.add('active');
+        } else {
+            panel.style.display = 'none';
+            panel.classList.remove('active');
         }
-    }
-    
-    btnRewind.style.display = showRewind ? 'flex' : 'none';
-    soulCounter.style.display = showSoul ? 'flex' : 'none';
-    
-    if(showRewind || showSoul){
-        panel.style.display = 'flex';
-        panel.classList.add('active');
-    } else {
-        panel.style.display = 'none';
-        panel.classList.remove('active');
     }
 }
 // ============================================
@@ -6296,10 +7353,18 @@ async function loadWalletFromFirebase(){
             const w=snap.val()||{};
             p.diamonds=Number(w.diamonds)||0;
             // Commander yang dimiliki juga diambil dari server
-            const ownedServer=Object.keys(w.owned||{});
+                        const ownedServer=Object.keys(w.owned||{});
             if(ownedServer.length){
-                const merged=Array.from(new Set([...(getUnlockedCommanders()), ...ownedServer]));
-                localStorage.setItem('mc_unlocked_commanders', JSON.stringify(merged));
+                const cmdOwned   = ownedServer.filter(k => !k.startsWith('board_'));
+                const boardOwned = ownedServer.filter(k => k.startsWith('board_')).map(k => k.slice(6));
+
+                const mergedCmd = Array.from(new Set([...(getUnlockedCommanders()), ...cmdOwned]));
+                localStorage.setItem('mc_unlocked_commanders', JSON.stringify(mergedCmd));
+
+                if(boardOwned.length){
+                    const mergedBoard = Array.from(new Set([...(getUnlockedBoards()), ...boardOwned]));
+                    localStorage.setItem('mc_unlocked_boards', JSON.stringify(mergedBoard));
+                }
             }
             saveMMCProfile(p);
         }else{
@@ -6440,6 +7505,1201 @@ window.addEventListener('firebaseAuthReady', async ()=>{
         publishMMCRankProfile();          // pastikan pemain muncul di leaderboard
     }
 });
+
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2a0d2c5fcc95941',t:'MTc4NjU1MTc5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<style id="chrono-badge-v2">
+#btn-rewind, #ability-panel { display:none !important; }
+
+.chrono-badge{
+    display:none;
+    margin-top:3px;
+    padding:3px 7px;
+    border-radius:8px;
+    font-family:'Orbitron',sans-serif;
+    font-size:.48rem;
+    font-weight:900;
+    letter-spacing:.4px;
+    line-height:1.2;
+    white-space:nowrap;
+    border:1px solid #22d3ee;
+    background:linear-gradient(135deg,#083344,#0e7490);
+    color:#e0fdff;
+    text-align:center;
+}
+.chrono-badge.on{ display:inline-block; }
+
+.chrono-badge.ready{
+    cursor:pointer;
+    animation:chronoGlow 1.2s ease-in-out infinite;
+}
+.chrono-badge.wait{
+    border-color:#64748b;
+    background:#1e293b;
+    color:#9fb0c4;
+}
+.chrono-badge.used{
+    border-color:#475569;
+    background:#111827;
+    color:#6b7280;
+}
+@keyframes chronoGlow{
+    0%,100%{ box-shadow:0 0 8px rgba(34,211,238,.4); }
+    50%{ box-shadow:0 0 18px rgba(34,211,238,.9); }
+}
+@media (max-width:768px){ .chrono-badge{ font-size:.40rem; } }
+</style>
+
+<script id="chrono-badge-v2-js">
+(function(){
+    if(window.__MMC_CHRONO_V2__) return;
+    window.__MMC_CHRONO_V2__ = true;
+
+    function makeBadge(idx){
+        const bid = idx===0 ? 'p1-chrono-badge' : 'p2-chrono-badge';
+        let b = document.getElementById(bid);
+        if(b) return b;
+        const hp = document.getElementById(idx===0 ? 'p1-hp-text' : 'p2-hp-text');
+        if(!hp || !hp.parentNode) return null;
+        b = document.createElement('div');
+        b.id = bid;
+        b.className = 'chrono-badge';
+        b.onclick = function(){ doRewind(idx); };
+        hp.parentNode.appendChild(b);
+        return b;
+    }
+
+    function paint(){
+        if(typeof GS==='undefined' || !GS.players) return;
+        if(!GS.chronoUsed) GS.chronoUsed=[false,false];
+
+        [0,1].forEach(function(idx){
+            const b = makeBadge(idx);
+            if(!b) return;
+            const p = GS.players[idx];
+            const isChrono = !!(p && p.commander && p.commander.id==='chronomancer');
+
+            if(GS.gameOver || !isChrono){
+                b.className='chrono-badge';
+                return;
+            }
+
+            b.classList.add('on');
+            b.classList.remove('ready','wait','used');
+
+            const canUse =
+                !GS.chronoUsed[idx] &&
+                GS.phase==='move' &&
+                GS.answerer===idx &&
+                GS.lastMove &&
+                GS.lastMove.player!==idx;
+
+            if(GS.chronoUsed[idx]){
+                b.textContent='⌛ REWIND TERPAKAI';
+                b.classList.add('used');
+            }else if(canUse){
+                b.textContent='⏳ REWIND — KLIK!';
+                b.classList.add('ready');
+            }else{
+                b.textContent='⏳ REWIND SIAP';
+                b.classList.add('wait');
+            }
+        });
+    }
+
+        function doRewind(idx){
+        if(!GS.players[idx] || GS.players[idx].commander.id!=='chronomancer') return;
+        if(GS.chronoUsed[idx]){ alert('Rewind sudah dipakai.'); return; }
+        if(GS.phase!=='move' || GS.answerer!==idx){
+            alert('Rewind hanya bisa dipakai saat giliran Anda memilih bidak.'); return;
+        }
+
+        // Pakai rekaman langkah asli (lebih andal daripada GS.lastMove)
+        const m = window.__mmcLastRealMove || GS.lastMove;
+        if(!m){ alert('Belum ada langkah lawan untuk di-rewind.'); return; }
+        if(m.player===idx){ alert('Hanya bisa rewind langkah LAWAN.'); return; }
+
+        const pc = GS.pieces[m.pieceId];
+        if(!pc){ alert('Langkah lawan sudah tidak valid.'); return; }
+
+        // Kembalikan bidak lawan ke petak asal
+        if(GS.board[m.toRow]) GS.board[m.toRow][m.toCol] = null;
+        pc.row = m.fromRow;
+        pc.col = m.fromCol;
+        pc.hasMoved = m.wasMoved;
+        if(GS.board[m.fromRow]) GS.board[m.fromRow][m.fromCol] = pc;
+
+        // Hidupkan bidak yang tadi dimakan
+        if(m.capturedId !== null && GS.pieces[m.capturedId]){
+            const cap = GS.pieces[m.capturedId];
+            cap.captured = false;
+            cap.row = m.toRow;
+            cap.col = m.toCol;
+            if(GS.board[m.toRow]) GS.board[m.toRow][m.toCol] = cap;
+            GS.capturedPieces = (GS.capturedPieces||[]).filter(c=>c.id!==m.capturedId);
+        }
+
+        GS.chronoUsed[idx] = true;
+        GS.lastMove = null;
+        window.__mmcLastRealMove = null;
+        GS.selectedPiece = null;
+        if(typeof clearHL==='function') clearHL();
+        if(typeof renderPieces3D==='function') renderPieces3D();
+        if(typeof showResult==='function') showResult('⏰','#00ccff');
+
+        const t=document.getElementById('turn-indicator');
+        if(t) t.textContent='⏰ '+GS.players[idx].name+' membatalkan langkah lawan!';
+        paint();
+    }
+
+    window.doChronoRewind = doRewind;
+    setInterval(paint, 350);
+    console.log('MMC Chrono badge v2 aktif');
+})();
+</script>
+<script id="chrono-capture-fix">
+(function(){
+    if(window.__MMC_CHRONO_CAPTURE__) return;
+    window.__MMC_CHRONO_CAPTURE__ = true;
+
+    // Simpan snapshot langkah lawan TEPAT sebelum doMove mengubah papan.
+    if(typeof doMove === 'function'){
+        const origDoMove = doMove;
+        doMove = function(p, tr, tc){
+            try{
+                if(p && !GS.gameOver){
+                    const targetBefore = GS.board[tr] ? GS.board[tr][tc] : null;
+                    window.__mmcLastRealMove = {
+                        pieceId: p.id,
+                        fromRow: p.row,
+                        fromCol: p.col,
+                        toRow: tr,
+                        toCol: tc,
+                        wasMoved: p.hasMoved,
+                        player: p.player,
+                        capturedId: (targetBefore && targetBefore.player !== p.player)
+                                    ? targetBefore.id : null,
+                        seq: (window.__mmcMoveSeq = (window.__mmcMoveSeq||0)+1)
+                    };
+                }
+            }catch(e){}
+            return origDoMove.apply(this, arguments);
+        };
+    }
+})();
+/* ============================================================
+   PATCH FINAL v3 — Naga + Paladin + Archmage + Shadow Blade
+   Ditempel di AKHIR script supaya menimpa fungsi lama.
+   ============================================================ */
+(function(){
+    if(!GS.paladinUsed)  GS.paladinUsed  = [false, false];
+    if(!GS.paladinArmed) GS.paladinArmed = [false, false];
+
+    if(document.getElementById('mmc-cmd-style')) return;
+    const st = document.createElement('style');
+    st.id = 'mmc-cmd-style';
+    st.textContent = `
+    .ab-paladin{background:linear-gradient(135deg,#5a3a00,#c9a227);border-color:#ffd700;color:#fff8dc;}
+    .ab-paladin.ready{animation:mmcGuardReady 1.1s ease-in-out infinite;cursor:pointer;}
+    .ab-paladin.armed{background:linear-gradient(135deg,#8a6a00,#ffe08a);border-color:#fff3b0;color:#1a1200;cursor:default;}
+    .ab-mage{background:linear-gradient(135deg,#2a1060,#6b3cff);border-color:#b388ff;color:#f3e8ff;}
+    .ab-shadow{background:linear-gradient(135deg,#1a1a1a,#444);border-color:#888;color:#eee;}
+    @keyframes mmcGuardReady{
+        0%,100%{box-shadow:0 0 8px rgba(255,215,0,.55);transform:scale(1);}
+        50%{box-shadow:0 0 18px rgba(255,215,0,1);transform:scale(1.06);}
+    }`;
+    document.head.appendChild(st);
+})();
+
+function armDivineGuard(idx){
+    if(!GS.paladinUsed)  GS.paladinUsed  = [false, false];
+    if(!GS.paladinArmed) GS.paladinArmed = [false, false];
+    if(idx<0||idx>1) return;
+    if(!GS.players[idx] || GS.players[idx].commander.id!=='paladin') return;
+    if(GS.paladinUsed[idx]){ alert('Divine Guard hanya 1x per pertandingan.'); return; }
+    GS.paladinArmed[idx] = true;
+    updateAbilityButtons();
+    const ti=document.getElementById('turn-indicator');
+    if(ti) ti.textContent='🛡️ Divine Guard SIAP! Damage berikutnya ditolak.';
+}
+
+/* ---------- DAMAGE: Archmage 50% + Paladin blok 1x ---------- */
+function calcDamage(loserIdx, winnerIdx){
+    const loser  = GS.players[loserIdx].commander.id;
+    const winner = GS.players[winnerIdx].commander.id;
+    let dmg = 10;
+
+    if(loser === 'knight') dmg = 5;
+    else if(loser === 'dragon') dmg = 15;
+
+    if(winner === 'wizard') dmg *= 2;
+
+    // Archmage: damage yang diterima jadi 50%
+    if(loser === 'archmage') dmg = Math.max(1, Math.floor(dmg * 0.5));
+
+    // Paladin: jika guard sudah diaktifkan, tolak SEMUA damage 1x
+    if(!GS.paladinUsed)  GS.paladinUsed  = [false, false];
+    if(!GS.paladinArmed) GS.paladinArmed = [false, false];
+    if(loser==='paladin' && GS.paladinArmed[loserIdx] && !GS.paladinUsed[loserIdx]){
+        GS.paladinUsed[loserIdx]  = true;
+        GS.paladinArmed[loserIdx] = false;
+        showResult('🛡️','#ffd700');
+        setTimeout(function(){
+            const ti=document.getElementById('turn-indicator');
+            if(ti) ti.textContent='🛡️ DIVINE GUARD! Damage ditolak habis.';
+            updateAbilityButtons();
+        }, 80);
+        return 0;
+    }
+    return dmg;
+}
+
+/* ---------- BADGE SEMUA COMMANDER DI PROFIL ---------- */
+function updateAbilityButtons(){
+    if(typeof ensureAbilityWraps === 'function') ensureAbilityWraps();
+    if(!GS.paladinUsed)  GS.paladinUsed  = [false, false];
+    if(!GS.paladinArmed) GS.paladinArmed = [false, false];
+
+    for(let i=0;i<2;i++){
+        const wrap=document.getElementById(i===0?'p1-ability-wrap':'p2-ability-wrap');
+        if(!wrap) continue;
+        if(GS.gameOver || !GS.players[i] || !GS.players[i].commander){
+            wrap.style.display='none'; wrap.innerHTML=''; continue;
+        }
+
+        const cmd=GS.players[i].commander.id;
+        let html='';
+
+        if(cmd==='necromancer'){
+            html+='<div class="ability-badge ab-necro">💀 SOUL '+(GS.soulStreak[i]||0)+'/3</div>';
+        }
+
+        if(cmd==='chronomancer'){
+            const used=GS.chronoUsed[i];
+            const enemyMoved=GS.lastMove && GS.lastMove.player!==i;
+            const myMoveTurn=(GS.phase==='move' && GS.answerer===i);
+            const offering=(GS.chronoOffer===i);
+            if(used) html+='<div class="ability-badge ab-chrono used">⏰ REWIND ✔</div>';
+            else if(enemyMoved && (myMoveTurn || offering))
+                html+='<button class="ability-badge ab-chrono ready" onclick="useTimeRewind()">⏰ REWIND!</button>';
+            else html+='<div class="ability-badge ab-chrono used">⏰ REWIND 1x</div>';
+        }
+
+        if(cmd==='paladin'){
+            if(GS.paladinUsed[i]) html+='<div class="ability-badge ab-paladin used">🛡️ TERPAKAI</div>';
+            else if(GS.paladinArmed[i]) html+='<div class="ability-badge ab-paladin armed">🛡️ SIAP</div>';
+            else html+='<button class="ability-badge ab-paladin ready" onclick="armDivineGuard('+i+')">🛡️ AKTIFKAN</button>';
+        }
+
+        if(cmd==='archmage'){
+            html+='<div class="ability-badge ab-mage">🔮 SHIELD 50%</div>';
+        }
+
+        if(cmd==='shadow_assassin'){
+            html+='<div class="ability-badge ab-shadow">🗡️ LIFESTEAL +4</div>';
+        }
+
+        wrap.innerHTML=html;
+        wrap.style.display=html?'flex':'none';
+    }
+}
+
+/* ---------- NAGA SUDUT: leher tinggi + sayap lebar ---------- */
+function buildCornerDragonStatue(g, sx, sz, E, Y, scaleM, horn, fire, ember){
+    const D = new THREE.Group();
+
+    // tumpuan batu
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.50, 0.28, 8), scaleM);
+    base.position.y = 0.14;
+    D.add(base);
+
+    // badan
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.30, 14, 12), scaleM);
+    body.scale.set(1.05, 0.85, 1.25);
+    body.position.set(0, 0.48, 0.02);
+    D.add(body);
+
+    // perut
+    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), horn);
+    belly.scale.set(0.85, 0.55, 1.05);
+    belly.position.set(0, 0.38, 0.10);
+    D.add(belly);
+
+    // LEHER PANJANG ke atas (ciri naga, bukan gajah)
+    const neck = [
+        [0, 0.68, 0.10, 0.16],
+        [0, 0.88, 0.16, 0.14],
+        [0, 1.10, 0.18, 0.13],
+        [0, 1.32, 0.14, 0.12],
+        [0, 1.52, 0.06, 0.11],
+        [0, 1.68,-0.04, 0.10]
+    ];
+    neck.forEach(function(n){
+        const s = new THREE.Mesh(new THREE.SphereGeometry(n[3], 12, 10), scaleM);
+        s.position.set(n[0], n[1], n[2]);
+        D.add(s);
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 4), horn);
+        sp.position.set(n[0], n[1]+n[3]*0.7, n[2]-n[3]*0.8);
+        sp.rotation.x = -0.7;
+        D.add(sp);
+    });
+
+    // KEPALA menunduk, mulut terbuka, tanduk ke belakang
+    const H = new THREE.Group();
+    H.position.set(0, 1.78, -0.02);
+    H.rotation.x = 0.85; // menunduk ke depan-bawah
+
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 12), scaleM);
+    skull.scale.set(0.80, 0.78, 1.15);
+    H.add(skull);
+
+    // rahang atas pendek (BUKAN belalai)
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.07, 0.22), scaleM);
+    upper.position.set(0, 0.02, 0.20);
+    H.add(upper);
+
+    // rahang bawah terbuka
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.05, 0.20), scaleM);
+    lower.position.set(0, -0.10, 0.18);
+    lower.rotation.x = -0.55;
+    H.add(lower);
+
+    // taring
+    for(let s=-1;s<=1;s+=2){
+        const fang = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.09, 4), horn);
+        fang.position.set(s*0.04, -0.04, 0.28);
+        fang.rotation.x = Math.PI;
+        H.add(fang);
+    }
+
+    // api di mulut
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 6), fire);
+    flame.rotation.x = Math.PI/2;
+    flame.position.set(0, -0.02, 0.36);
+    H.add(flame);
+    const spark = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), ember);
+    spark.position.set(0, -0.02, 0.30);
+    H.add(spark);
+
+    // tanduk panjang ke BELAKANG
+    for(let s=-1;s<=1;s+=2){
+        const hn = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.48, 6), horn);
+        hn.position.set(s*0.09, 0.10, -0.20);
+        hn.rotation.x = -1.25;
+        hn.rotation.z = -s*0.28;
+        H.add(hn);
+    }
+
+    // telinga/jambul
+    for(let s=-1;s<=1;s+=2){
+        const ear = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16, 4), scaleM);
+        ear.position.set(s*0.13, 0.08, 0.02);
+        ear.rotation.z = -s*0.9;
+        H.add(ear);
+    }
+
+    // mata
+    for(let s=-1;s<=1;s+=2){
+        const ey = new THREE.Mesh(new THREE.SphereGeometry(0.034, 8, 8), fire);
+        ey.position.set(s*0.08, 0.05, 0.10);
+        H.add(ey);
+        const pu = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 6), ember);
+        pu.position.set(s*0.08, 0.05, 0.13);
+        H.add(pu);
+    }
+    D.add(H);
+
+    // SAYAP KELELAWAR LEBAR — ini yang membuatnya terbaca "naga" dari atas
+    for(let s=-1;s<=1;s+=2){
+        const W = new THREE.Group();
+
+        const bone = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 1.15, 6), horn);
+        bone.rotation.z = Math.PI/2;
+        bone.position.set(s*0.58, 0.08, 0);
+        W.add(bone);
+
+        // 3 selaput sayap pipih
+        for(let f=0; f<3; f++){
+            const memb = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.85, 3), scaleM);
+            memb.scale.set(1, 1, 0.07);
+            memb.position.set(s*(0.38+f*0.22), -0.28-f*0.08, -0.06);
+            memb.rotation.z = s*(0.55+f*0.18);
+            memb.rotation.x = 0.15;
+            W.add(memb);
+        }
+
+        const claw = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 4), horn);
+        claw.position.set(s*1.12, 0.16, 0);
+        claw.rotation.z = -s*0.7;
+        W.add(claw);
+
+        W.position.set(0, 0.72, -0.10);
+        W.rotation.y = -s*0.25;
+        W.rotation.x = -0.15;
+        D.add(W);
+    }
+
+    // ekor menjulur keluar sudut
+    for(let i=0;i<7;i++){
+        const r = 0.11 - i*0.012;
+        const seg = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), scaleM);
+        seg.position.set(0.06+i*0.11, 0.28-i*0.02, -0.28-i*0.16);
+        D.add(seg);
+    }
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.26, 5), horn);
+    tip.position.set(0.82, 0.14, -1.38);
+    tip.rotation.x = -0.9;
+    D.add(tip);
+
+    // kaki mencengkeram tumpuan
+    for(let s=-1;s<=1;s+=2){
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.28, 6), scaleM);
+        leg.position.set(s*0.18, 0.26, 0.22);
+        leg.rotation.x = 0.4;
+        D.add(leg);
+        for(let c=-1;c<=1;c++){
+            const cl = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.09, 4), horn);
+            cl.position.set(s*0.18+c*0.04, 0.12, 0.34);
+            cl.rotation.x = 1.2;
+            D.add(cl);
+        }
+    }
+
+    D.position.set(sx*E, Y, sz*E);
+    D.rotation.y = Math.atan2(-sx, -sz);
+    D.scale.setScalar(1.35);
+    g.add(D);
+}
+
+function decorDragon(g, E, Y){
+    const scaleM = new THREE.MeshPhongMaterial({
+        color:0x5A1010, specular:0xFF6644, shininess:95, emissive:0x1A0404
+    });
+    const horn = new THREE.MeshPhongMaterial({
+        color:0xD4AF37, specular:0xFFF3B0, shininess:130, emissive:0x2A1600
+    });
+    const fire = new THREE.MeshPhongMaterial({
+        color:0xFF4500, emissive:0xFF2200, emissiveIntensity:1.4
+    });
+    const ember = new THREE.MeshPhongMaterial({
+        color:0xFFD700, emissive:0xFFAA00, emissiveIntensity:1.8
+    });
+
+    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
+        buildCornerDragonStatue(g, p[0], p[1], E-0.08, Y, scaleM, horn, fire, ember);
+    });
+
+    // duri kecil di tepi, jauh dari patung
+    for(let s=0;s<4;s++){
+        const rot=s*Math.PI/2;
+        for(let i=-4;i<=4;i++){
+            if(Math.abs(i)>=4) continue;
+            const pos=decorEdgePos(i*1.55, E, rot);
+            const sp=new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.28, 5), scaleM);
+            sp.position.set(pos.x, Y+0.12, pos.z);
+            g.add(sp);
+        }
+    }
+}
+/* ============================================================
+   PATCH v4 — Naga Siluet + Paladin Badge Mandiri
+   ============================================================ */
+(function(){
+    if(!GS.paladinUsed)  GS.paladinUsed  = [false,false];
+    if(!GS.paladinArmed) GS.paladinArmed = [false,false];
+    if(document.getElementById('mmc-pal-style')) return;
+    const st=document.createElement('style');
+    st.id='mmc-pal-style';
+    st.textContent=`
+    .ab-paladin{background:linear-gradient(135deg,#5a3a00,#c9a227);border-color:#ffd700;color:#fff8dc;}
+    .ab-paladin.ready{cursor:pointer;animation:mmcGuard 1.1s ease-in-out infinite;}
+    .ab-paladin.armed{background:linear-gradient(135deg,#8a6a00,#ffe08a);border-color:#fff3b0;color:#1a1200;}
+    .ab-paladin.used{opacity:.55;}
+    @keyframes mmcGuard{
+        0%,100%{box-shadow:0 0 8px rgba(255,215,0,.55);transform:scale(1);}
+        50%{box-shadow:0 0 18px rgba(255,215,0,1);transform:scale(1.06);}
+    }`;
+    document.head.appendChild(st);
+})();
+
+function armDivineGuard(idx){
+    if(idx<0||idx>1) return;
+    if(!GS.players[idx]||GS.players[idx].commander.id!=='paladin') return;
+    if(GS.paladinUsed[idx]){ alert('Divine Guard hanya 1x per pertandingan.'); return; }
+    GS.paladinArmed[idx]=true;
+    const ti=document.getElementById('turn-indicator');
+    if(ti) ti.textContent='🛡️ Divine Guard SIAP! Damage berikutnya ditolak.';
+}
+
+/* Badge Paladin mandiri — tidak bergantung updateAbilityButtons */
+setInterval(function(){
+    if(typeof GS==='undefined'||!GS.players) return;
+    const scr=document.getElementById('game-screen');
+    if(!scr||!scr.classList.contains('active')) return;
+    if(!GS.paladinUsed)  GS.paladinUsed  = [false,false];
+    if(!GS.paladinArmed) GS.paladinArmed = [false,false];
+
+    for(let i=0;i<2;i++){
+        const p=GS.players[i];
+        const wrap=document.getElementById(i===0?'p1-ability-wrap':'p2-ability-wrap');
+        if(!wrap) continue;
+        const old=wrap.querySelector('[data-pal]');
+
+        if(GS.gameOver||!p||!p.commander||p.commander.id!=='paladin'){
+            if(old) old.remove();
+            continue;
+        }
+
+        let want = GS.paladinUsed[i] ? 'used' : (GS.paladinArmed[i] ? 'armed' : 'ready');
+        if(old && old.getAttribute('data-pal')===want) continue;
+        if(old) old.remove();
+
+        const el=document.createElement(want==='ready'?'button':'div');
+        el.setAttribute('data-pal',want);
+        el.className='ability-badge ab-paladin '+want;
+        el.textContent = want==='ready' ? '🛡️ AKTIFKAN'
+                       : want==='armed' ? '🛡️ SIAP'
+                       : '🛡️ TERPAKAI';
+        if(want==='ready') el.onclick=function(){ armDivineGuard(i); };
+        wrap.appendChild(el);
+        wrap.style.display='flex';
+    }
+},400);
+
+/* ---------- SILUET NAGA (seperti watermark, tapi 3D relief) ---------- */
+function makeDragonShape(){
+    const s=new THREE.Shape();
+
+    // moncong & kepala
+    s.moveTo(1.55,1.62);
+    s.quadraticCurveTo(1.30,1.88,1.04,1.82);
+    s.lineTo(0.98,1.98);
+    s.lineTo(0.70,2.46);   // tanduk panjang
+    s.lineTo(0.80,1.92);
+    s.lineTo(0.60,2.24);   // tanduk kedua
+    s.lineTo(0.66,1.85);
+    s.quadraticCurveTo(0.50,1.80,0.42,1.62);
+
+    // leher berduri
+    s.bezierCurveTo(0.22,1.38,0.06,1.16,0.03,0.94);
+    s.lineTo(-0.20,1.08);
+    s.lineTo(-0.05,0.82);
+    s.lineTo(-0.30,0.90);
+    s.lineTo(-0.10,0.68);
+
+    // sayap kelelawar
+    s.lineTo(-0.55,1.58);
+    s.lineTo(-1.08,2.00);
+    s.lineTo(-0.96,1.46);
+    s.lineTo(-1.38,1.58);
+    s.lineTo(-1.16,1.06);
+    s.lineTo(-1.58,1.02);
+    s.lineTo(-1.22,0.70);
+    s.lineTo(-0.60,0.62);
+
+    // ekor melengkung + ujung bercabang
+    s.bezierCurveTo(-1.10,0.46,-1.62,0.30,-1.96,0.06);
+    s.lineTo(-2.22,0.24);
+    s.lineTo(-2.00,-0.10);
+    s.lineTo(-2.20,-0.30);
+    s.lineTo(-1.82,-0.18);
+    s.bezierCurveTo(-1.42,0.00,-0.96,0.06,-0.60,0.08);
+
+    // kaki belakang
+    s.lineTo(-0.55,-0.30);
+    s.lineTo(-0.74,-0.46);
+    s.lineTo(-0.40,-0.46);
+    s.lineTo(-0.32,0.06);
+
+    // kaki depan
+    s.lineTo(0.28,0.02);
+    s.lineTo(0.32,-0.42);
+    s.lineTo(0.10,-0.48);
+    s.lineTo(0.50,-0.48);
+    s.lineTo(0.52,0.10);
+
+    // dada
+    s.bezierCurveTo(0.72,0.56,0.86,0.96,0.92,1.26);
+
+    // rahang terbuka
+    s.lineTo(1.22,1.28);
+    s.lineTo(1.66,1.16);
+    s.lineTo(1.28,1.42);
+    s.lineTo(1.56,1.46);
+    s.closePath();
+    return s;
+}
+
+function buildCornerDragonStatue(g,sx,sz,E,Y,scaleM,horn,fire,ember){
+    const D=new THREE.Group();
+
+    // alas batu
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.80,0.30,8),scaleM);
+    base.position.y=0.15; D.add(base);
+    const trim=new THREE.Mesh(new THREE.TorusGeometry(0.66,0.05,8,20),horn);
+    trim.rotation.x=Math.PI/2; trim.position.y=0.30; D.add(trim);
+
+    // relief naga
+    const geo=new THREE.ExtrudeGeometry(makeDragonShape(),{
+        depth:0.18, bevelEnabled:true, bevelThickness:0.06,
+        bevelSize:0.055, bevelSegments:2, curveSegments:12
+    });
+    geo.translate(0.30,0.52,-0.09);
+
+    const body=new THREE.Mesh(geo,scaleM);
+    body.scale.setScalar(0.60);
+    body.position.y=0.30;
+    D.add(body);
+
+    // garis emas tepi (relief ganda tipis)
+    const glow=new THREE.Mesh(geo,horn);
+    glow.scale.setScalar(0.615);
+    glow.position.set(0,0.295,-0.012);
+    D.add(glow);
+    body.renderOrder=2; glow.renderOrder=1;
+
+    // mata menyala kedua sisi
+    [0.13,-0.13].forEach(function(zz){
+        const ey=new THREE.Mesh(new THREE.SphereGeometry(0.055,10,10),fire);
+        ey.position.set(0.70,1.68,zz); D.add(ey);
+        const pu=new THREE.Mesh(new THREE.SphereGeometry(0.026,8,8),ember);
+        pu.position.set(0.70,1.68,zz*1.35); D.add(pu);
+    });
+
+    // semburan api dari mulut
+    const fl=new THREE.Mesh(new THREE.ConeGeometry(0.09,0.34,6),fire);
+    fl.rotation.z=-Math.PI/2;
+    fl.position.set(1.30,1.34,0);
+    D.add(fl);
+    const sp=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,8),ember);
+    sp.position.set(1.14,1.36,0);
+    D.add(sp);
+
+    D.position.set(sx*E,Y,sz*E);
+    D.rotation.y=Math.atan2(-sx,-sz);
+    D.scale.setScalar(1.15);
+    g.add(D);
+}
+
+function decorDragon(g,E,Y){
+    const scaleM=new THREE.MeshPhongMaterial({
+        color:0x4E0E0E, specular:0xFF6644, shininess:100, emissive:0x180303
+    });
+    const horn=new THREE.MeshPhongMaterial({
+        color:0xD4AF37, specular:0xFFF3B0, shininess:140, emissive:0x2A1600
+    });
+    const fire=new THREE.MeshPhongMaterial({
+        color:0xFF4500, emissive:0xFF2200, emissiveIntensity:1.5
+    });
+    const ember=new THREE.MeshPhongMaterial({
+        color:0xFFD700, emissive:0xFFAA00, emissiveIntensity:1.9
+    });
+
+    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
+        buildCornerDragonStatue(g,p[0],p[1],E-0.05,Y,scaleM,horn,fire,ember);
+    });
+
+    for(let s=0;s<4;s++){
+        const rot=s*Math.PI/2;
+        for(let i=-3;i<=3;i++){
+            const pos=decorEdgePos(i*1.9,E,rot);
+            const sk=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.30,5),scaleM);
+            sk.position.set(pos.x,Y+0.13,pos.z);
+            g.add(sk);
+        }
+    }
+}
+/* ============================================================
+   PATCH v5 — Naga Bidak 3D + Badge Paladin Anti-Hilang
+   ============================================================ */
+(function(){
+    if(!GS.paladinUsed)  GS.paladinUsed  = [false,false];
+    if(!GS.paladinArmed) GS.paladinArmed = [false,false];
+    if(document.getElementById('mmc-v5-style')) return;
+    const st=document.createElement('style');
+    st.id='mmc-v5-style';
+    st.textContent=`
+    .player-ability-wrap{
+        display:flex;justify-content:center;align-items:center;
+        gap:6px;margin-top:6px;width:100%;
+    }
+    .ability-badge{
+        padding:4px 10px;border-radius:8px;border:1px solid;
+        font-family:'Orbitron',sans-serif;font-size:.68rem;font-weight:800;
+        display:inline-flex;align-items:center;gap:5px;
+        white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.5);
+    }
+    .ab-paladin{background:linear-gradient(135deg,#5a3a00,#c9a227);border-color:#ffd700;color:#fff8dc;}
+    .ab-paladin.ready{cursor:pointer;animation:mmcGuard 1.1s ease-in-out infinite;}
+    .ab-paladin.armed{background:linear-gradient(135deg,#8a6a00,#ffe08a);border-color:#fff3b0;color:#1a1200;}
+    .ab-paladin.used{opacity:.55;}
+    @keyframes mmcGuard{
+        0%,100%{box-shadow:0 0 8px rgba(255,215,0,.55);transform:scale(1);}
+        50%{box-shadow:0 0 18px rgba(255,215,0,1);transform:scale(1.06);}
+    }
+    @media(max-width:768px){ .ability-badge{font-size:.52rem;padding:3px 6px;} }`;
+    document.head.appendChild(st);
+})();
+
+function armDivineGuard(idx){
+    if(idx<0||idx>1) return;
+    if(!GS.players[idx]||GS.players[idx].commander.id!=='paladin') return;
+    if(GS.paladinUsed[idx]){ alert('Divine Guard hanya 1x per pertandingan.'); return; }
+    GS.paladinArmed[idx]=true;
+    const ti=document.getElementById('turn-indicator');
+    if(ti) ti.textContent='🛡️ Divine Guard SIAP! Damage berikutnya ditolak.';
+}
+
+
+/* ============================================================
+   NAGA SEBAGAI BIDAK CATUR 3D DI SUDUT
+   Prinsip: sama seperti bidak Raja/Ratu, tapi kepala naga.
+   ============================================================ */
+function buildDragonPiece(g, sx, sz, E, Y, matBody, matGold, matEye, matFire){
+
+    const D = new THREE.Group();
+
+    // ====== ALAS BIDAK (persis pola bidak catur Anda) ======
+    const base1 = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.16, 20), matBody);
+    base1.position.y = 0.08; D.add(base1);
+    const base2 = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.55, 0.06, 20), matBody);
+    base2.position.y = 0.19; D.add(base2);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.53, 0.035, 8, 24), matGold);
+    ring.rotation.x = Math.PI/2; ring.position.y = 0.23; D.add(ring);
+
+    // ====== BATANG (stem) ======
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.44, 0.42, 16), matBody);
+    stem.position.y = 0.47; D.add(stem);
+
+    // ====== PERUT (waist) ======
+    const waist = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 14), matBody);
+    waist.scale.y = 0.65; waist.position.y = 0.75; D.add(waist);
+    const beltGold = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.038, 8, 24), matGold);
+    beltGold.rotation.x = Math.PI/2; beltGold.position.y = 0.75; D.add(beltGold);
+
+    // ====== DADA (chest) tempat sisik naga ======
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.30, 16, 14), matBody);
+    chest.scale.set(1, 1.2, 0.9);
+    chest.position.y = 1.05; D.add(chest);
+
+    // sisik dada (baris kecil emas)
+    for(let r=0;r<3;r++){
+        for(let c=-1;c<=1;c++){
+            const scale = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), matGold);
+            scale.position.set(c*0.10, 0.92+r*0.10, 0.28-r*0.02);
+            D.add(scale);
+        }
+    }
+
+    // ====== LEHER PANJANG MELENGKUNG KE ATAS (ciri utama naga) ======
+    const neckPts = [
+        [0, 1.30, 0.06, 0.22],
+        [0, 1.52, 0.14, 0.20],
+        [0, 1.74, 0.18, 0.19],
+        [0, 1.96, 0.14, 0.18],
+        [0, 2.14, 0.02, 0.17],
+        [0, 2.28,-0.10, 0.16]
+    ];
+    neckPts.forEach(function(n){
+        const seg = new THREE.Mesh(new THREE.SphereGeometry(n[3], 14, 12), matBody);
+        seg.position.set(n[0], n[1], n[2]); D.add(seg);
+        // duri emas punggung leher
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 4), matGold);
+        sp.position.set(n[0], n[1]+n[3]*0.75, n[2]-n[3]*0.8);
+        sp.rotation.x = -0.7;
+        D.add(sp);
+    });
+
+    // ====== KEPALA NAGA ======
+    const H = new THREE.Group();
+    H.position.set(0, 2.40, -0.06);
+    H.rotation.x = 0.75; // menunduk ke depan-bawah
+
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 14), matBody);
+    skull.scale.set(0.90, 0.85, 1.30); H.add(skull);
+
+    // moncong kotak-ramping (bukan silinder panjang seperti belalai)
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.11, 0.32), matBody);
+    upper.position.set(0, 0.02, 0.30); H.add(upper);
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.08, 0.28), matBody);
+    lower.position.set(0, -0.14, 0.28); lower.rotation.x = -0.5; H.add(lower);
+
+    // taring
+    for(let s=-1;s<=1;s+=2){
+        const fang = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.13, 4), matGold);
+        fang.position.set(s*0.06, -0.06, 0.42); fang.rotation.x = Math.PI; H.add(fang);
+    }
+
+    // api dari mulut
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.32, 6), matFire);
+    flame.rotation.x = Math.PI/2;
+    flame.position.set(0, -0.04, 0.54); H.add(flame);
+
+    // tanduk panjang ke belakang
+    for(let s=-1;s<=1;s+=2){
+        const hn = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.62, 6), matGold);
+        hn.position.set(s*0.13, 0.16, -0.24);
+        hn.rotation.x = -1.30;
+        hn.rotation.z = -s*0.30;
+        H.add(hn);
+    }
+
+    // jambul segitiga (crest naga)
+    for(let i=-1;i<=1;i++){
+        const crest = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 4), matBody);
+        crest.position.set(i*0.08, 0.12, -0.02);
+        crest.rotation.x = -0.35;
+        H.add(crest);
+    }
+
+    // mata menyala
+    for(let s=-1;s<=1;s+=2){
+        const ey = new THREE.Mesh(new THREE.SphereGeometry(0.052, 10, 10), matFire);
+        ey.position.set(s*0.13, 0.05, 0.14); H.add(ey);
+        const pu = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), matEye);
+        pu.position.set(s*0.13, 0.05, 0.18); H.add(pu);
+    }
+
+    // sungut naga oriental
+    for(let s=-1;s<=1;s+=2){
+        const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.006, 0.44, 5), matGold);
+        wh.position.set(s*0.10, -0.02, 0.42);
+        wh.rotation.z = s*0.60;
+        wh.rotation.x = -0.40;
+        H.add(wh);
+    }
+
+    D.add(H);
+
+    // ====== SAYAP KELELAWAR DILIPAT (biar tetap terbaca sebagai naga dari atas) ======
+    for(let s=-1;s<=1;s+=2){
+        const wing = new THREE.Mesh(new THREE.ConeGeometry(0.36, 0.90, 3), matBody);
+        wing.scale.set(1, 1, 0.14);
+        wing.position.set(s*0.36, 1.10, -0.22);
+        wing.rotation.z = s*0.50;
+        wing.rotation.y = -s*0.30;
+        D.add(wing);
+        // rib emas
+        const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.030, 0.80, 6), matGold);
+        rib.position.set(s*0.34, 1.10, -0.22);
+        rib.rotation.z = s*0.55;
+        rib.rotation.y = -s*0.30;
+        D.add(rib);
+    }
+
+    // ====== EKOR MELINGKAR di alas ======
+    const tail = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.09, 8, 24, Math.PI*1.4), matBody);
+    tail.rotation.x = Math.PI/2;
+    tail.position.set(0, 0.22, 0);
+    D.add(tail);
+    const tailTip = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.26, 5), matGold);
+    tailTip.position.set(-0.48, 0.22, -0.20);
+    tailTip.rotation.z = -0.9;
+    D.add(tailTip);
+
+    // ====== PERMATA MAHKOTA (identitas 'raja naga') ======
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.10, 0), matFire);
+    gem.position.set(0, 1.42, 0.18);
+    D.add(gem);
+
+    // ====== POSISI DI SUDUT & MENGHADAP TENGAH PAPAN ======
+    D.position.set(sx*E, Y, sz*E);
+    D.rotation.y = Math.atan2(-sx, -sz);
+    D.scale.setScalar(1.05);   // besar seperti Raja
+    g.add(D);
+}
+
+function decorDragon(g, E, Y){
+    const matBody = new THREE.MeshPhongMaterial({
+        color: 0x5A1010, specular: 0xFF6644, shininess: 100, emissive: 0x1A0303
+    });
+    const matGold = new THREE.MeshPhongMaterial({
+        color: 0xD4AF37, specular: 0xFFF3B0, shininess: 140, emissive: 0x2A1600
+    });
+    const matEye = new THREE.MeshPhongMaterial({
+        color: 0xFFD700, emissive: 0xFFAA00, emissiveIntensity: 2.0
+    });
+    const matFire = new THREE.MeshPhongMaterial({
+        color: 0xFF4500, emissive: 0xFF2200, emissiveIntensity: 1.6
+    });
+
+    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
+        buildDragonPiece(g, p[0], p[1], E-0.05, Y, matBody, matGold, matEye, matFire);
+    });
+
+    // duri kecil tepi (jauh dari sudut biar tidak menabrak naga)
+    for(let s=0;s<4;s++){
+        const rot=s*Math.PI/2;
+        for(let i=-3;i<=3;i++){
+            const pos=decorEdgePos(i*1.9, E, rot);
+            const sk=new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.30, 5), matBody);
+            sk.position.set(pos.x, Y+0.13, pos.z);
+            g.add(sk);
+        }
+    }
+}
+</script>
+<style id="paladin-reflect-css">
+/* Sembunyikan tombol AKTIFKAN sisa patch lama */
+#p1-chrono button,
+#p2-chrono button,
+#p1-paladin-btn,
+#p2-paladin-btn,
+button.chrono-btn,
+.player-side button {
+    display: none !important;
+}
+
+.paladin-badge{
+    display:none;
+    margin-top:3px;
+    padding:3px 7px;
+    border-radius:8px;
+    font-family:'Orbitron',sans-serif;
+    font-size:.44rem;
+    font-weight:900;
+    letter-spacing:.3px;
+    line-height:1.2;
+    white-space:nowrap;
+    text-align:center;
+    pointer-events:none;
+    border:1px solid #f5d76e;
+    background:linear-gradient(135deg,#3a2a08,#8a6a14);
+    color:#ffe9a0;
+}
+.paladin-badge.on{ display:inline-block; }
+.paladin-badge.ready{ box-shadow:0 0 10px rgba(255,215,0,.45); }
+.paladin-badge.used{
+    border-color:#6b7280;
+    background:#1f2937;
+    color:#9ca3af;
+    box-shadow:none;
+}
+@media (max-width:768px){ .paladin-badge{ font-size:.36rem; } }
+</style>
+
+<script id="paladin-reflect-js">
+(function(){
+    if(window.__MMC_PALADIN_REFLECT__) return;
+    window.__MMC_PALADIN_REFLECT__ = true;
+
+    function makeBadge(idx){
+        const id = idx===0 ? 'p1-paladin-badge' : 'p2-paladin-badge';
+        let b = document.getElementById(id);
+        if(b) return b;
+        const hp = document.getElementById(idx===0 ? 'p1-hp-text' : 'p2-hp-text');
+        if(!hp || !hp.parentNode) return null;
+        b = document.createElement('div');
+        b.id = id;
+        b.className = 'paladin-badge';
+        hp.parentNode.appendChild(b);
+        return b;
+    }
+
+    function paintPaladin(){
+        if(typeof GS==='undefined' || !GS.players) return;
+        if(!GS.paladinUsed) GS.paladinUsed = [false, false];
+
+        [0,1].forEach(function(idx){
+            const b = makeBadge(idx);
+            if(!b) return;
+            const p = GS.players[idx];
+            const isPal = !!(p && p.commander && p.commander.id==='paladin');
+            if(GS.gameOver || !isPal){
+                b.className = 'paladin-badge';
+                return;
+            }
+            b.classList.add('on');
+            b.classList.remove('ready','used');
+            if(GS.paladinUsed[idx]){
+                b.textContent = '🛡️ TERPAKAI';
+                b.classList.add('used');
+            }else{
+                b.textContent = '🛡️ DIVINE JUDGMENT';
+                b.classList.add('ready');
+            }
+        });
+    }
+
+    // Bungkus calcDamage:
+    // salah pertama Paladin = 0 damage ke Paladin
+    // + 70% max HP lawan langsung terpotong
+    if(typeof calcDamage === 'function'){
+        const origCalc = calcDamage;
+        calcDamage = function(loserIdx, winnerIdx){
+            try{
+                if(!GS.paladinUsed) GS.paladinUsed = [false, false];
+                const loser = GS.players[loserIdx] && GS.players[loserIdx].commander;
+                const winner = GS.players[winnerIdx];
+
+                if(loser && loser.id==='paladin' && !GS.paladinUsed[loserIdx] && winner){
+                    GS.paladinUsed[loserIdx] = true;
+
+                    const reflect = Math.max(1, Math.round(winner.maxHp * 0.70));
+                    winner.hp -= reflect;
+
+                    if(typeof showResult==='function') showResult('🛡️','#ffd700');
+                    const t = document.getElementById('turn-indicator');
+                    if(t){
+                        t.textContent = '🛡️ Divine Judgment! ' +
+                            winner.name + ' -' + reflect + ' HP (70%)';
+                    }
+                    if(typeof updateUI==='function') updateUI();
+                    paintPaladin();
+
+                    if(winner.hp <= 0 && typeof endGame==='function'){
+                        setTimeout(function(){ endGame(loserIdx); }, 400);
+                    }
+                    return 0; // Paladin tidak kena damage
+                }
+            }catch(e){
+                console.warn('Paladin reflect error', e);
+            }
+            return origCalc.apply(this, arguments);
+        };
+    }
+
+    if(typeof startGame === 'function'){
+        const origStart = startGame;
+        startGame = function(){
+            const r = origStart.apply(this, arguments);
+            GS.paladinUsed = [false, false];
+            paintPaladin();
+            return r;
+        };
+    }
+
+    setInterval(paintPaladin, 400);
+    console.log('MMC Paladin Divine Judgment aktif');
+})();
+/* ============================================================
+   PATCH NAGA — Alas 3D + Gambar PNG dragon-corner.png
+   ============================================================ */
+(function(){
+    // Muat tekstur sekali saja, dipakai ulang untuk 4 sudut
+    window.__dragonTex = null;
+    window.__dragonTexTried = false;
+
+    function loadDragonTexture(){
+        if(window.__dragonTexTried) return;
+        window.__dragonTexTried = true;
+        const loader = new THREE.TextureLoader();
+        loader.load(
+            'dragon-corner.png',
+            function(tex){
+                if('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+                else tex.encoding = THREE.sRGBEncoding;
+                window.__dragonTex = tex;
+                console.log('🐉 dragon-corner.png berhasil dimuat');
+                // Kalau papan naga sedang aktif, bangun ulang agar naga muncul
+                if(getActiveBoardTheme && getActiveBoardTheme().decor === 'dragon'
+                   && typeof initThreeJS === 'function'
+                   && document.getElementById('game-screen').classList.contains('active')){
+                    try{ initThreeJS(); }catch(e){}
+                }
+            },
+            undefined,
+            function(){
+                console.warn('⚠️ dragon-corner.png tidak ditemukan. Naga tampil sebagai pedestal saja.');
+            }
+        );
+    }
+    loadDragonTexture();
+})();
+
+function buildDragonCorner(g, sx, sz, E, Y, matStone, matGold, matFire){
+    const D = new THREE.Group();
+
+    // ===== ALAS BATU 3D =====
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.82, 0.34, 8), matStone);
+    base.position.y = 0.17;
+    D.add(base);
+
+    const trim = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.06, 8, 24), matGold);
+    trim.rotation.x = Math.PI/2;
+    trim.position.y = 0.34;
+    D.add(trim);
+
+    // Tiang penyangga panel
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.55, 8), matStone);
+    post.position.y = 0.55;
+    D.add(post);
+
+    // ===== PANEL NAGA (gambar PNG) =====
+    const tex = window.__dragonTex;
+
+    if(tex){
+        // Bingkai emas di belakang gambar
+        const frame = new THREE.Mesh(
+            new THREE.BoxGeometry(1.55, 1.9, 0.08),
+            matGold
+        );
+        frame.position.y = 1.55;
+        D.add(frame);
+
+        // Bidang bergambar naga (transparan)
+        const mat = new THREE.MeshPhongMaterial({
+            map: tex,
+            transparent: true,
+            alphaTest: 0.4,
+            side: THREE.DoubleSide,
+            emissive: 0x5a1a08,
+            emissiveIntensity: 0.35,
+            specular: 0x000000
+        });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.85), mat);
+        plane.position.set(0, 1.55, 0.06);
+        D.add(plane);
+
+        // Bara api kecil di kaki panel
+        for(let s=-1;s<=1;s+=2){
+            const ember = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), matFire);
+            ember.position.set(s*0.5, 0.9, 0.1);
+            D.add(ember);
+        }
+    } else {
+        // Fallback jika PNG belum ada: obelisk batu + permata api
+        const obelisk = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.5, 4), matStone);
+        obelisk.rotation.y = Math.PI/4;
+        obelisk.position.y = 1.45;
+        D.add(obelisk);
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), matFire);
+        gem.position.y = 2.35;
+        D.add(gem);
+    }
+
+    // ===== POSISI DI SUDUT, MENGHADAP TENGAH =====
+    D.position.set(sx*E, Y, sz*E);
+    D.rotation.y = Math.atan2(-sx, -sz);
+    D.scale.setScalar(1.1);
+    g.add(D);
+}
+
+function decorDragon(g, E, Y){
+    const matStone = new THREE.MeshPhongMaterial({
+        color: 0x4E0E0E, specular: 0xFF6644, shininess: 90, emissive: 0x180303
+    });
+    const matGold = new THREE.MeshPhongMaterial({
+        color: 0xD4AF37, specular: 0xFFF3B0, shininess: 140, emissive: 0x2A1600
+    });
+    const matFire = new THREE.MeshPhongMaterial({
+        color: 0xFF4500, emissive: 0xFF2200, emissiveIntensity: 1.6
+    });
+
+    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
+        buildDragonCorner(g, p[0], p[1], E-0.05, Y, matStone, matGold, matFire);
+    });
+
+    // Duri kecil di tepi
+    for(let s=0;s<4;s++){
+        const rot = s*Math.PI/2;
+        for(let i=-3;i<=3;i++){
+            const pos = decorEdgePos(i*1.9, E, rot);
+            const sk = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.30, 5), matStone);
+            sk.position.set(pos.x, Y+0.13, pos.z);
+            g.add(sk);
+        }
+    }
+}
+</script>
+</body>
 </html>
