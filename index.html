@@ -3597,7 +3597,7 @@ function generateQuestion(){
         document.getElementById('race-text').textContent = '⚡ JAWAB SEBELUM KOMPUTER!';
         document.getElementById('turn-indicator').textContent = '⚡ Soal Muncul!';
     }
-    //document.getElementById('question-overlay').classList.add('active');
+    document.getElementById('question-overlay').classList.add('active');
 
     // Timer setup dengan bonus commander
     let timerMax = 15;
@@ -4425,13 +4425,13 @@ function hideQ(){
     // FIX 12: setelah overlay ditutup, minta satu frame render bersih.
     // Ini memaksa GPU HP menggambar ulang papan dari geometri (bukan dari
     // cache layer lama yang sudah ter-resample), sehingga garis tidak tersisa.
-    requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>{
-            if(renderer && scene && camera && !threeContextLost){
-                try{ renderer.render(scene, camera); }catch(e){}
-            }
-        });
-    });
+    //requestAnimationFrame(()=>{
+        //requestAnimationFrame(()=>{
+            //if(renderer && scene && camera && !threeContextLost){
+                //try{ renderer.render(scene, camera); }catch(e){}
+            //}
+        //});
+    //});
 }
 function showResult(s,c){
     const el=document.getElementById('result-feedback');
