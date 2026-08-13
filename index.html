@@ -1704,119 +1704,91 @@
   #gameover-screen .stats-container { max-width: 92vw; }
   #gameover-screen .stat-card { min-width: 64px !important; }
 }
-/* =========================================================
-   SOLUSI HEADER MOBILE - PLAYER DI SISI KIRI & KANAN
-   ========================================================= */
-
-@media (max-width: 768px) and (pointer: coarse) {
-
-    #game-screen .game-header {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-
-        width: 100% !important;
-        height: 100% !important;
-
-        padding: 0 !important;
-        margin: 0 !important;
-
-        display: block !important;
-
-        background: transparent !important;
-        border: 0 !important;
-
-        pointer-events: none !important;
-        z-index: 20 !important;
-    }
-
-    /* PLAYER KIRI */
-    #game-screen .game-header .player-info:not(.right) {
-        position: absolute !important;
-
-        top: 8px !important;
-        left: 5px !important;
-
-        width: 62px !important;
-
-        display: flex !important;
-        flex-direction: column !important;
-
-        gap: 3px !important;
-
-        pointer-events: auto !important;
-    }
-
-    /* PLAYER KANAN */
-    #game-screen .game-header .player-info.right {
-        position: absolute !important;
-
-        top: 8px !important;
-        right: 5px !important;
-
-        width: 62px !important;
-
-        display: flex !important;
-        flex-direction: column !important;
-
-        gap: 3px !important;
-
-        pointer-events: auto !important;
-    }
-
-    /* AVATAR */
-    #game-screen .info-avatar {
-        width: 42px !important;
-        height: 42px !important;
-
-        min-width: 42px !important;
-        min-height: 42px !important;
-
-        font-size: 1.55rem !important;
-
-        margin: 0 auto !important;
-    }
-
-    /* NAMA + DETAIL */
-    #game-screen .info-details {
-        width: 100% !important;
-
-        display: flex !important;
-        flex-direction: column !important;
-
-        align-items: center !important;
-
-        gap: 2px !important;
-    }
-
-    #game-screen .info-name {
-        font-size: .52rem !important;
-        line-height: 1.05 !important;
-
-        max-width: 62px !important;
-
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        white-space: nowrap !important;
-    }
-
-    /* HP */
-    #game-screen .hp-bar-container {
-        width: 58px !important;
-        height: 8px !important;
-
-        margin: 0 auto !important;
-    }
-
-    #game-screen .hp-bar {
-        height: 100% !important;
-    }
-
+/* PLAYER PANEL KIRI/KANAN */
+#game-screen .player-side {
+    position: absolute;
+    top: 8px;
+    width: 110px;
+    z-index: 20;
+    pointer-events: none;
 }
-/* TES HEADER - sementara */
-background: transparent !important;
-border: 0 !important;
+
+#game-screen .player-side-left {
+    left: 8px;
+}
+
+#game-screen .player-side-right {
+    right: 8px;
+}
+
+
+/* Isi panel */
+#game-screen .player-side .player-info {
+    width: 100%;
+    min-height: 64px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    gap: 3px;
+    padding: 5px;
+
+    box-sizing: border-box;
+
+    background: rgba(10,18,40,0.96);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 10px;
+}
+
+
+/* Karakter */
+#game-screen .player-side .info-avatar {
+    font-size: 28px;
+    line-height: 30px;
+}
+
+
+/* Nama */
+#game-screen .player-side .info-name {
+    font-size: 11px;
+    font-weight: 800;
+}
+
+
+/* HP */
+#game-screen .player-side .hp-bar-container {
+    width: 92px;
+    height: 6px;
+}
+
+#game-screen .player-side .hp-text {
+    font-size: 9px;
+    font-weight: 700;
+}
+#game-screen #turn-indicator {
+    position: absolute;
+
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+
+    z-index: 21;
+
+    padding: 5px 10px;
+
+    background: #0a1228;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+
+    font-size: 11px;
+    font-weight: 800;
+
+    white-space: nowrap;
+
+    pointer-events: none;
+}
 </style>
 <style>
 /* MOBILE: Necromancer Soul counter dibuat kecil agar tidak menutupi raja/ratu di papan. */
@@ -2373,32 +2345,49 @@ border: 0 !important;
 
 <!-- GAME -->
 <div id="game-screen" class="screen">
-    <div class="game-header">
-        <div class="player-info">
-            <div class="info-avatar" id="p1-avatar">🤴</div>
-            <div class="info-details">
-                <div class="info-name p1-color" id="p1-display-name">Player 1</div>
-                <div class="hp-bar-container">
-                    <div class="hp-bar hp-bar-p1" id="p1-hp-bar" style="width:100%"></div>
-                </div>
-                <div class="hp-text" id="p1-hp-text">HP: 100/100</div>
+    <!-- PLAYER 1 -->
+<div class="player-side player-side-left">
+    <div class="player-info">
+        <div class="info-avatar" id="p1-avatar">🤴</div>
+        <div class="info-details">
+            <div class="info-name p1-color" id="p1-display-name">Player 1</div>
+
+            <div class="hp-bar-container">
+                <div class="hp-bar hp-bar-p1" id="p1-hp-bar" style="width:100%"></div>
             </div>
-        </div>
-        <div class="turn-indicator" id="turn-indicator">⚡ Bersiap...</div>
-        <div class="player-info right">
-            <div class="info-avatar" id="p2-avatar">🤖</div>
-            <div class="info-details">
-                <div class="info-name p2-color" id="p2-display-name">Komputer</div>
-                <div class="hp-bar-container">
-                    <div class="hp-bar hp-bar-p2" id="p2-hp-bar" style="width:100%"></div>
-                </div>
-                <div class="hp-text" id="p2-hp-text">HP: 100/100</div>
-            </div>
+
+            <div class="hp-text" id="p1-hp-text">HP: 100/100</div>
         </div>
     </div>
-    <div class="game-area">
-        <canvas id="game-canvas"></canvas>
+</div>
+
+
+<!-- TURN INDICATOR -->
+<div class="turn-indicator" id="turn-indicator">
+    ⚡ Bersiap...
+</div>
+
+
+<!-- PLAYER 2 -->
+<div class="player-side player-side-right">
+    <div class="player-info right">
+        <div class="info-avatar" id="p2-avatar">🤖</div>
+        <div class="info-details">
+            <div class="info-name p2-color" id="p2-display-name">Komputer</div>
+
+            <div class="hp-bar-container">
+                <div class="hp-bar hp-bar-p2" id="p2-hp-bar" style="width:100%"></div>
+            </div>
+
+            <div class="hp-text" id="p2-hp-text">HP: 100/100</div>
+        </div>
     </div>
+</div>
+
+
+<div class="game-area">
+    <canvas id="game-canvas"></canvas>
+</div>
 </div>
 
 <!-- QUESTION -->
