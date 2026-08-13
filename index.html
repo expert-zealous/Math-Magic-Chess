@@ -3661,48 +3661,6 @@ function buildCornerDragonStatue(g, sx, sz, E, Y, scaleM, horn, fire, ember) {
     g.add(D);
 }
 
-function decorDragon(g, E, Y){
-    const scaleM = new THREE.MeshPhongMaterial({
-        color: 0x4A0F0F,       // Merah obsidian naga gelap
-        specular: 0xFF5533,    // Kilau api merah-oranye
-        shininess: 90,
-        emissive: 0x1A0303
-    });
-    const horn = new THREE.MeshPhongMaterial({
-        color: 0xD4A72C,       // Tanduk emas mewah
-        specular: 0xFFFFFF,
-        shininess: 120,
-        emissive: 0x2A1500
-    });
-    const fire = new THREE.MeshPhongMaterial({
-        color: 0xFF4500,       // Mata api merah menyala
-        emissive: 0xFF0000,
-        emissiveIntensity: 1.5
-    });
-    const ember = new THREE.MeshPhongMaterial({
-        color: 0xFFD700,       // Pupil emas bersinar
-        emissive: 0xFFD700,
-        emissiveIntensity: 2.0
-    });
-
-    // Tempatkan 4 Patung Naga Sudut Raksasa
-    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
-        buildCornerDragonStatue(g, sx, sz, E - 0.1, Y, scaleM, horn, fire, ember);
-    });
-
-    // Tambahkan duri obsidian pelindung di sepanjang pinggiran bingkai
-    for(let s = 0; s < 4; s++){
-        const rot = s * Math.PI / 2;
-        for(let i = -5; i <= 5; i++){
-            if(Math.abs(i) === 5) continue; // Jangan menabrak patung naga di sudut
-            const p = decorEdgePos(i * 1.5, E, rot);
-            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.35, 5), scaleM);
-            spike.position.set(p.x, Y + 0.15, p.z);
-            spike.rotation.y = rot;
-            g.add(spike);
-        }
-    }
-}
 
 /* ---------- GALAKSI ---------- */
 function decorGalaxy(g, E, Y){
@@ -7970,43 +7928,7 @@ function buildCornerDragonStatue(g, sx, sz, E, Y, scaleM, horn, fire, ember){
     g.add(D);
 }
 
-function decorDragon(g, E, Y){
-    const scaleM = new THREE.MeshPhongMaterial({
-        color: 0x4A0F0F,
-        specular: 0xFF5533,
-        shininess: 90,
-        emissive: 0x1A0303
-    });
-    const horn = new THREE.MeshPhongMaterial({
-        color: 0xD4A72C,
-        specular: 0xFFFFFF,
-        shininess: 120,
-        emissive: 0x2A1500
-    });
-    const fire = new THREE.MeshPhongMaterial({
-        color: 0xFF4500,
-        emissive: 0xFF0000,
-        emissiveIntensity: 1.5
-    });
 
-    // PANGGIL FUNGSI PNG, bukan patung geometri
-    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
-        buildDragonCorner(g, sx, sz, E - 0.08, Y, scaleM, horn, fire);
-    });
-
-    // Duri tepi, sudut dikosongkan
-    for(let s = 0; s < 4; s++){
-        const rot = s * Math.PI / 2;
-        for(let i = -5; i <= 5; i++){
-            if(Math.abs(i) >= 5) continue;
-            const p = decorEdgePos(i * 1.5, E, rot);
-            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.28, 5), scaleM);
-            spike.position.set(p.x, Y + 0.14, p.z);
-            spike.rotation.y = rot;
-            g.add(spike);
-        }
-    }
-}
 /* ============================================================
    PATCH v4 — Naga Siluet + Paladin Badge Mandiri
    ============================================================ */
@@ -8187,34 +8109,7 @@ function buildCornerDragonStatue(g,sx,sz,E,Y,scaleM,horn,fire,ember){
     g.add(D);
 }
 
-function decorDragon(g,E,Y){
-    const scaleM=new THREE.MeshPhongMaterial({
-        color:0x4E0E0E, specular:0xFF6644, shininess:100, emissive:0x180303
-    });
-    const horn=new THREE.MeshPhongMaterial({
-        color:0xD4AF37, specular:0xFFF3B0, shininess:140, emissive:0x2A1600
-    });
-    const fire=new THREE.MeshPhongMaterial({
-        color:0xFF4500, emissive:0xFF2200, emissiveIntensity:1.5
-    });
-    const ember=new THREE.MeshPhongMaterial({
-        color:0xFFD700, emissive:0xFFAA00, emissiveIntensity:1.9
-    });
 
-    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
-        buildCornerDragonStatue(g,p[0],p[1],E-0.05,Y,scaleM,horn,fire,ember);
-    });
-
-    for(let s=0;s<4;s++){
-        const rot=s*Math.PI/2;
-        for(let i=-3;i<=3;i++){
-            const pos=decorEdgePos(i*1.9,E,rot);
-            const sk=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.30,5),scaleM);
-            sk.position.set(pos.x,Y+0.13,pos.z);
-            g.add(sk);
-        }
-    }
-}
 /* ============================================================
    PATCH v5 — Naga Bidak 3D + Badge Paladin Anti-Hilang
    ============================================================ */
@@ -8415,35 +8310,7 @@ function buildDragonPiece(g, sx, sz, E, Y, matBody, matGold, matEye, matFire){
     g.add(D);
 }
 
-function decorDragon(g, E, Y){
-    const matBody = new THREE.MeshPhongMaterial({
-        color: 0x5A1010, specular: 0xFF6644, shininess: 100, emissive: 0x1A0303
-    });
-    const matGold = new THREE.MeshPhongMaterial({
-        color: 0xD4AF37, specular: 0xFFF3B0, shininess: 140, emissive: 0x2A1600
-    });
-    const matEye = new THREE.MeshPhongMaterial({
-        color: 0xFFD700, emissive: 0xFFAA00, emissiveIntensity: 2.0
-    });
-    const matFire = new THREE.MeshPhongMaterial({
-        color: 0xFF4500, emissive: 0xFF2200, emissiveIntensity: 1.6
-    });
 
-    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
-        buildDragonPiece(g, p[0], p[1], E-0.05, Y, matBody, matGold, matEye, matFire);
-    });
-
-    // duri kecil tepi (jauh dari sudut biar tidak menabrak naga)
-    for(let s=0;s<4;s++){
-        const rot=s*Math.PI/2;
-        for(let i=-3;i<=3;i++){
-            const pos=decorEdgePos(i*1.9, E, rot);
-            const sk=new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.30, 5), matBody);
-            sk.position.set(pos.x, Y+0.13, pos.z);
-            g.add(sk);
-        }
-    }
-}
 </script>
 <style id="paladin-reflect-css">
 /* Sembunyikan tombol AKTIFKAN sisa patch lama */
@@ -8613,81 +8480,7 @@ button.chrono-btn,
     loadDragonTexture();
 })();
 
-function buildDragonCorner(g, sx, sz, E, Y, matStone, matGold, matFire){
-    const D = new THREE.Group();
 
-    // ===== ALAS PATUNG 3D =====
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.72, 0.16, 16), matGold);
-    base.position.y = 0.08;
-    D.add(base);
-
-    const mid = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.56, 0.14, 16), matStone);
-    mid.position.y = 0.22;
-    D.add(mid);
-
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.40, 0.46, 0.08, 16), matGold);
-    top.position.y = 0.33;
-    D.add(top);
-
-    const tex = window.__dragonTex;
-
-    if(tex){
-        const mat = new THREE.MeshBasicMaterial({
-            map: tex,
-            transparent: true,
-            alphaTest: 0.08,
-            side: THREE.DoubleSide,
-            depthWrite: false
-        });
-
-        // Tanpa kotak emas. Hanya naga PNG.
-        // Gambar Photopea Anda persegi, jadi plane juga persegi.
-        const plane = new THREE.Mesh(new THREE.PlaneGeometry(2.35, 2.35), mat);
-        plane.position.set(0, 1.48, 0);
-        plane.rotation.x = -0.22; // miring sedikit ke kamera
-        plane.renderOrder = 10;
-        D.add(plane);
-    } else {
-        // Cadangan jika PNG belum siap
-        const fallback = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.2, 6), matStone);
-        fallback.position.y = 1.0;
-        D.add(fallback);
-    }
-
-    D.position.set(sx * E, Y, sz * E);
-
-    // Semua naga menghadap kamera pemain, bukan menyamping
-    D.rotation.y = 0;
-    D.scale.setScalar(1.05);
-    g.add(D);
-}
-
-function decorDragon(g, E, Y){
-    const matStone = new THREE.MeshPhongMaterial({
-        color: 0x4E0E0E, specular: 0xFF6644, shininess: 90, emissive: 0x180303
-    });
-    const matGold = new THREE.MeshPhongMaterial({
-        color: 0xD4AF37, specular: 0xFFF3B0, shininess: 140, emissive: 0x2A1600
-    });
-    const matFire = new THREE.MeshPhongMaterial({
-        color: 0xFF4500, emissive: 0xFF2200, emissiveIntensity: 1.6
-    });
-
-    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
-        buildDragonCorner(g, p[0], p[1], E-0.05, Y, matStone, matGold, matFire);
-    });
-
-    // Duri kecil di tepi
-    for(let s=0;s<4;s++){
-        const rot = s*Math.PI/2;
-        for(let i=-3;i<=3;i++){
-            const pos = decorEdgePos(i*1.9, E, rot);
-            const sk = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.30, 5), matStone);
-            sk.position.set(pos.x, Y+0.13, pos.z);
-            g.add(sk);
-        }
-    }
-}
 /* ============================================================
    PATCH HUD MOBILE — notifikasi tidak menutupi papan
    ============================================================ */
@@ -8756,157 +8549,101 @@ function decorDragon(g, E, Y){
 /* ============================================================
    PATCH NAGA 3D — Patung Naga Oriental Menjulang (rearing)
    ============================================================ */
-function buildDragonCorner(g, sx, sz, E, Y, mBody, mGold, mFire){
-    const D = new THREE.Group();
-    const mEye = new THREE.MeshPhongMaterial({color:0xFFE24A, emissive:0xFFAA00, emissiveIntensity:2});
-
-    // ===== PEDESTAL BATU =====
-    const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.60,0.80,0.30,8), mBody);
-    ped.position.y=0.15; D.add(ped);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.64,0.06,8,24), mGold);
-    ring.rotation.x=Math.PI/2; ring.position.y=0.30; D.add(ring);
-
-    // ===== EKOR MELINGKAR DI ALAS =====
-    const coil = new THREE.Mesh(new THREE.TorusGeometry(0.44,0.14,10,24,Math.PI*1.6), mBody);
-    coil.rotation.x=Math.PI/2; coil.position.y=0.44; D.add(coil);
-    const tailTip = new THREE.Mesh(new THREE.ConeGeometry(0.10,0.34,6), mGold);
-    tailTip.position.set(-0.44,0.44,-0.28); tailTip.rotation.z=-0.9; D.add(tailTip);
-
-    // ===== BADAN BERKELOK NAIK (S-curve) =====
-    const spine = [
-        [0.00,0.62,0.05,0.26],
-        [0.06,0.86,0.10,0.25],
-        [0.04,1.10,0.06,0.24],
-        [-0.04,1.34,-0.02,0.22],
-        [-0.02,1.58,0.02,0.20],
-        [0.04,1.80,0.12,0.19],
-        [0.02,2.00,0.20,0.18]
-    ];
-    spine.forEach(function(s,i){
-        const seg = new THREE.Mesh(new THREE.SphereGeometry(s[3],14,12), mBody);
-        seg.scale.set(1,1,1.15);
-        seg.position.set(s[0],s[1],s[2]); D.add(seg);
-        // duri punggung emas
-        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.06,0.24,4), mGold);
-        sp.position.set(s[0], s[1]+s[3]*0.7, s[2]-s[3]*0.9);
-        sp.rotation.x=-0.7; D.add(sp);
-        // sisik perut emas
-        if(i%2===0){
-            const bl = new THREE.Mesh(new THREE.SphereGeometry(s[3]*0.55,10,8), mGold);
-            bl.scale.set(0.9,0.5,1);
-            bl.position.set(s[0], s[1]-s[3]*0.55, s[2]+s[3]*0.7); D.add(bl);
-        }
-    });
-
-    // ===== KEPALA NAGA (menunduk ke depan) =====
-    const H = new THREE.Group();
-    H.position.set(0.02,2.16,0.24);
-    H.rotation.x=0.7;
-
-    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.20,16,14), mBody);
-    skull.scale.set(0.95,0.85,1.15); H.add(skull);
-
-    // moncong PENDEK (bukan belalai)
-    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.20,0.13,0.24), mBody);
-    snout.position.set(0,-0.01,0.24); H.add(snout);
-
-    // rahang bawah terbuka
-    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.08,0.22), mBody);
-    jaw.position.set(0,-0.15,0.22); jaw.rotation.x=-0.5; H.add(jaw);
-
-    // gigi
-    for(let s=-1;s<=1;s+=2){
-        const f = new THREE.Mesh(new THREE.ConeGeometry(0.028,0.12,4), mGold);
-        f.position.set(s*0.06,-0.05,0.34); f.rotation.x=Math.PI; H.add(f);
-    }
-
-    // api dari mulut
-    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.10,0.34,6), mFire);
-    flame.rotation.x=Math.PI/2; flame.position.set(0,-0.05,0.48); H.add(flame);
-    const spark = new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8), mEye);
-    spark.position.set(0,-0.05,0.40); H.add(spark);
-
-    // tanduk panjang ke BELAKANG
-    for(let s=-1;s<=1;s+=2){
-        const hn = new THREE.Mesh(new THREE.ConeGeometry(0.05,0.60,6), mGold);
-        hn.position.set(s*0.12,0.14,-0.22);
-        hn.rotation.x=-1.3; hn.rotation.z=-s*0.28; H.add(hn);
-    }
-    // jambul duri kepala
-    for(let i=-1;i<=1;i++){
-        const cr = new THREE.Mesh(new THREE.ConeGeometry(0.05,0.20,4), mBody);
-        cr.position.set(i*0.09,0.14,-0.02); cr.rotation.x=-0.4; H.add(cr);
-    }
-    // mata menyala
-    for(let s=-1;s<=1;s+=2){
-        const ey = new THREE.Mesh(new THREE.SphereGeometry(0.05,10,10), mFire);
-        ey.position.set(s*0.13,0.06,0.12); H.add(ey);
-        const pu = new THREE.Mesh(new THREE.SphereGeometry(0.022,8,8), mEye);
-        pu.position.set(s*0.13,0.06,0.16); H.add(pu);
-    }
-    // sungut naga
-    for(let s=-1;s<=1;s+=2){
-        const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.005,0.42,5), mGold);
-        wh.position.set(s*0.10,-0.03,0.34); wh.rotation.z=s*0.6; wh.rotation.x=-0.4; H.add(wh);
-    }
-    D.add(H);
-
-    // ===== SAYAP KELELAWAR TERBENTANG =====
-    for(let s=-1;s<=1;s+=2){
-        const W = new THREE.Group();
-        const bone = new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.045,1.05,6), mGold);
-        bone.rotation.z=Math.PI/2; bone.position.set(s*0.52,0,0); W.add(bone);
-        for(let f=0;f<3;f++){
-            const memb = new THREE.Mesh(new THREE.ConeGeometry(0.30,0.80,3), mBody);
-            memb.scale.set(1,1,0.08);
-            memb.position.set(s*(0.34+f*0.20),-0.26-f*0.07,-0.05);
-            memb.rotation.z=s*(0.55+f*0.16); memb.rotation.x=0.14; W.add(memb);
-        }
-        const claw = new THREE.Mesh(new THREE.ConeGeometry(0.03,0.16,4), mGold);
-        claw.position.set(s*1.02,0.14,0); claw.rotation.z=-s*0.7; W.add(claw);
-        W.position.set(0,1.30,-0.16);
-        W.rotation.y=-s*0.28; W.rotation.x=-0.12; W.rotation.z=-s*0.15;
-        D.add(W);
-    }
-
-    // ===== KAKI DEPAN MENCENGKERAM =====
-    for(let s=-1;s<=1;s+=2){
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.36,6), mBody);
-        leg.position.set(s*0.22,0.86,0.30); leg.rotation.x=0.5; D.add(leg);
-        for(let c=-1;c<=1;c++){
-            const cl = new THREE.Mesh(new THREE.ConeGeometry(0.022,0.12,4), mGold);
-            cl.position.set(s*0.22+c*0.05,0.66,0.44); cl.rotation.x=1.2; D.add(cl);
-        }
-    }
-
-    // permata dada
-    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.11,0), mFire);
-    gem.position.set(0,1.02,0.24); D.add(gem);
-
-    // ===== POSISI SUDUT, MENGHADAP TENGAH =====
-    D.position.set(sx*E, Y, sz*E);
-    D.rotation.y = Math.atan2(-sx,-sz);
-    D.scale.setScalar(1.0);
-    g.add(D);
-}
 
 function decorDragon(g, E, Y){
-    const mBody = new THREE.MeshPhongMaterial({color:0x6A1414, specular:0xFF7A55, shininess:100, emissive:0x1E0404});
-    const mGold = new THREE.MeshPhongMaterial({color:0xD4AF37, specular:0xFFF3B0, shininess:140, emissive:0x2A1600});
-    const mFire = new THREE.MeshPhongMaterial({color:0xFF4500, emissive:0xFF2200, emissiveIntensity:1.6});
-
-    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
-        buildDragonCorner(g, p[0], p[1], E-0.05, Y, mBody, mGold, mFire);
+    const matStone = new THREE.MeshPhongMaterial({
+        color: 0x4E0E0E,
+        specular: 0xFF6644,
+        shininess: 90,
+        emissive: 0x180303
     });
 
+    const matGold = new THREE.MeshPhongMaterial({
+        color: 0xD4AF37,
+        specular: 0xFFF3B0,
+        shininess: 140,
+        emissive: 0x2A1600
+    });
+
+    const matFire = new THREE.MeshPhongMaterial({
+        color: 0xFF4500,
+        emissive: 0xFF2200,
+        emissiveIntensity: 1.6
+    });
+
+    // Bersihkan daftar material naga lama
+    window.__dragonMaterials = [];
+
+    // 4 standee naga PNG di sudut
+    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
+        buildDragonCorner(g, p[0], p[1], E-0.05, Y, matStone, matGold, matFire);
+    });
+
+    // Duri kecil di tepi bingkai
     for(let s=0;s<4;s++){
-        const rot=s*Math.PI/2;
+        const rot = s*Math.PI/2;
         for(let i=-3;i<=3;i++){
-            const pos=decorEdgePos(i*1.9,E,rot);
-            const sk=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.30,5), mBody);
-            sk.position.set(pos.x,Y+0.13,pos.z); g.add(sk);
+            const pos = decorEdgePos(i*1.9, E, rot);
+            const sk = new THREE.Mesh(
+                new THREE.ConeGeometry(0.08, 0.30, 5),
+                matStone
+            );
+            sk.position.set(pos.x, Y+0.13, pos.z);
+            g.add(sk);
         }
     }
+}
+function buildDragonCorner(g, sx, sz, E, Y, mStone, mGold, mFire){
+    const D = new THREE.Group();
+
+    // pedestal batu bertingkat
+    const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.66,0.86,0.24,8), mStone);
+    p1.position.y=0.12; D.add(p1);
+
+    const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.54,0.66,0.18,8), mStone);
+    p2.position.y=0.32; D.add(p2);
+
+    const ringG = new THREE.Mesh(new THREE.TorusGeometry(0.60,0.06,8,24), mGold);
+    ringG.rotation.x=Math.PI/2;
+    ringG.position.y=0.40;
+    D.add(ringG);
+
+    // dua tiang emas penyangga
+    for(let s=-1;s<=1;s+=2){
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,1.8,8), mGold);
+        post.position.set(s*0.78,1.32,0);
+        D.add(post);
+
+        const top = new THREE.Mesh(new THREE.SphereGeometry(0.10,10,10), mFire);
+        top.position.set(s*0.78,2.28,0);
+        D.add(top);
+    }
+
+    // panel naga png
+    const mat = new THREE.MeshBasicMaterial({
+        map: window.__dragonTex || null,
+        transparent: true,
+        alphaTest: 0.1,
+        side: THREE.DoubleSide
+    });
+
+    window.__dragonMaterials.push(mat);
+
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.7,1.7), mat);
+    plane.position.set(0,1.35,0.06);
+    D.add(plane);
+
+    // bara api di kaki panel
+    for(let s=-1;s<=1;s+=2){
+        const e = new THREE.Mesh(new THREE.SphereGeometry(0.09,10,10), mFire);
+        e.position.set(s*0.5,0.55,0.15);
+        D.add(e);
+    }
+
+    D.position.set(sx*E, Y, sz*E);
+    D.rotation.y = Math.atan2(-sx,-sz);
+    D.scale.setScalar(1.1);
+    g.add(D);
 }
 </script>
 </body>
