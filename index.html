@@ -1770,7 +1770,7 @@
 #game-screen #turn-indicator {
     position: absolute;
 
-    top: 14px;
+    top: 60px;
     left: 50%;
     transform: translateX(-50%);
 
@@ -3059,7 +3059,6 @@ function cleanupGame(){
 function createPieceMesh(piece){
     const isP1 = piece.player===0;
     
-    // Warna baru sesuai rekomendasi
     const mainColor  = isP1 ? 0x0B2D68 : 0x7A0D1A;
     const darkColor  = isP1 ? 0x051633 : 0x40060D;
     const shinyColor = isP1 ? 0x1D56A5 : 0xB51F32;
@@ -3067,8 +3066,10 @@ function createPieceMesh(piece){
     const metalVal   = 0.8;
     const roughVal   = 0.22;
 
-    const mat      = new THREE.MeshStandardMaterial({color:mainColor, metalness:metalVal, roughness:roughVal, emissive:darkColor, emissiveIntensity:0.1});
-    const matShiny = new THREE.MeshStandardMaterial({color:shinyColor, metalness:metalVal, roughness:roughVal, emissive:darkColor, emissiveIntensity:0.05});
+    // Material yang diperbarui agar tidak terlalu gelap:
+    const mat      = new THREE.MeshStandardMaterial({color:mainColor, metalness:metalVal, roughness:roughVal});
+    const matShiny = new THREE.MeshStandardMaterial({color:shinyColor, metalness:metalVal, roughness:roughVal});
+    // ... (sisanya biarkan seperti biasa)    
     const matDark  = new THREE.MeshStandardMaterial({color:darkColor, metalness:0.7, roughness:0.3});
     const goldMat  = new THREE.MeshStandardMaterial({color:0xffd700, metalness:0.9, roughness:0.1, emissive:0xaa7700, emissiveIntensity:0.3});
     const gemMat   = new THREE.MeshStandardMaterial({color:0xff2266, metalness:0.5, roughness:0.1, emissive:0xff0044, emissiveIntensity:0.4});
