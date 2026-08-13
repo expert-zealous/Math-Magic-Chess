@@ -4434,12 +4434,7 @@ function hideQ(){
     });
 }
 function showResult(s,c){
-    const el=document.getElementById('result-feedback');
-    if(!el) return;
-    el.textContent=s; el.style.color=c;
-    el.classList.remove('active'); void el.offsetWidth;
-    el.classList.add('active');
-    setTimeout(()=>el.classList.remove('active'),1200);
+    return;
 }
 function showPSMsg(msg){
     const el=document.getElementById('piece-select-msg');
