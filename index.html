@@ -7972,31 +7972,38 @@ function buildCornerDragonStatue(g, sx, sz, E, Y, scaleM, horn, fire, ember){
 
 function decorDragon(g, E, Y){
     const scaleM = new THREE.MeshPhongMaterial({
-        color:0x5A1010, specular:0xFF6644, shininess:95, emissive:0x1A0404
+        color: 0x4A0F0F,
+        specular: 0xFF5533,
+        shininess: 90,
+        emissive: 0x1A0303
     });
     const horn = new THREE.MeshPhongMaterial({
-        color:0xD4AF37, specular:0xFFF3B0, shininess:130, emissive:0x2A1600
+        color: 0xD4A72C,
+        specular: 0xFFFFFF,
+        shininess: 120,
+        emissive: 0x2A1500
     });
     const fire = new THREE.MeshPhongMaterial({
-        color:0xFF4500, emissive:0xFF2200, emissiveIntensity:1.4
-    });
-    const ember = new THREE.MeshPhongMaterial({
-        color:0xFFD700, emissive:0xFFAA00, emissiveIntensity:1.8
-    });
-
-    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
-        buildCornerDragonStatue(g, p[0], p[1], E-0.08, Y, scaleM, horn, fire, ember);
+        color: 0xFF4500,
+        emissive: 0xFF0000,
+        emissiveIntensity: 1.5
     });
 
-    // duri kecil di tepi, jauh dari patung
-    for(let s=0;s<4;s++){
-        const rot=s*Math.PI/2;
-        for(let i=-4;i<=4;i++){
-            if(Math.abs(i)>=4) continue;
-            const pos=decorEdgePos(i*1.55, E, rot);
-            const sp=new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.28, 5), scaleM);
-            sp.position.set(pos.x, Y+0.12, pos.z);
-            g.add(sp);
+    // PANGGIL FUNGSI PNG, bukan patung geometri
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
+        buildDragonCorner(g, sx, sz, E - 0.08, Y, scaleM, horn, fire);
+    });
+
+    // Duri tepi, sudut dikosongkan
+    for(let s = 0; s < 4; s++){
+        const rot = s * Math.PI / 2;
+        for(let i = -5; i <= 5; i++){
+            if(Math.abs(i) >= 5) continue;
+            const p = decorEdgePos(i * 1.5, E, rot);
+            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.28, 5), scaleM);
+            spike.position.set(p.x, Y + 0.14, p.z);
+            spike.rotation.y = rot;
+            g.add(spike);
         }
     }
 }
@@ -8609,68 +8616,49 @@ button.chrono-btn,
 function buildDragonCorner(g, sx, sz, E, Y, matStone, matGold, matFire){
     const D = new THREE.Group();
 
-    // ===== ALAS BATU 3D =====
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.82, 0.34, 8), matStone);
-    base.position.y = 0.17;
+    // ===== ALAS PATUNG 3D =====
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.72, 0.16, 16), matGold);
+    base.position.y = 0.08;
     D.add(base);
 
-    const trim = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.06, 8, 24), matGold);
-    trim.rotation.x = Math.PI/2;
-    trim.position.y = 0.34;
-    D.add(trim);
+    const mid = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.56, 0.14, 16), matStone);
+    mid.position.y = 0.22;
+    D.add(mid);
 
-    // Tiang penyangga panel
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.55, 8), matStone);
-    post.position.y = 0.55;
-    D.add(post);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.40, 0.46, 0.08, 16), matGold);
+    top.position.y = 0.33;
+    D.add(top);
 
-    // ===== PANEL NAGA (gambar PNG) =====
     const tex = window.__dragonTex;
 
     if(tex){
-        // Bingkai emas di belakang gambar
-        const frame = new THREE.Mesh(
-            new THREE.BoxGeometry(1.55, 1.9, 0.08),
-            matGold
-        );
-        frame.position.y = 1.55;
-        D.add(frame);
-
-        // Bidang bergambar naga (transparan)
-        const mat = new THREE.MeshPhongMaterial({
+        const mat = new THREE.MeshBasicMaterial({
             map: tex,
             transparent: true,
-            alphaTest: 0.4,
+            alphaTest: 0.08,
             side: THREE.DoubleSide,
-            emissive: 0x5a1a08,
-            emissiveIntensity: 0.35,
-            specular: 0x000000
+            depthWrite: false
         });
-        const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.85), mat);
-        plane.position.set(0, 1.55, 0.06);
-        D.add(plane);
 
-        // Bara api kecil di kaki panel
-        for(let s=-1;s<=1;s+=2){
-            const ember = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), matFire);
-            ember.position.set(s*0.5, 0.9, 0.1);
-            D.add(ember);
-        }
+        // Tanpa kotak emas. Hanya naga PNG.
+        // Gambar Photopea Anda persegi, jadi plane juga persegi.
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(2.35, 2.35), mat);
+        plane.position.set(0, 1.48, 0);
+        plane.rotation.x = -0.22; // miring sedikit ke kamera
+        plane.renderOrder = 10;
+        D.add(plane);
     } else {
-        // Fallback jika PNG belum ada: obelisk batu + permata api
-        const obelisk = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.5, 4), matStone);
-        obelisk.rotation.y = Math.PI/4;
-        obelisk.position.y = 1.45;
-        D.add(obelisk);
-        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), matFire);
-        gem.position.y = 2.35;
-        D.add(gem);
+        // Cadangan jika PNG belum siap
+        const fallback = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.2, 6), matStone);
+        fallback.position.y = 1.0;
+        D.add(fallback);
     }
 
-    // ===== POSISI DI SUDUT, MENGHADAP TENGAH =====
-    D.position.set(sx*E, Y, sz*E);
-    D.rotation.y = Math.atan2(-sx, -sz);
-    D.scale.setScalar(1.1);
+    D.position.set(sx * E, Y, sz * E);
+
+    // Semua naga menghadap kamera pemain, bukan menyamping
+    D.rotation.y = 0;
+    D.scale.setScalar(1.05);
     g.add(D);
 }
 
