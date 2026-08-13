@@ -8700,6 +8700,71 @@ function decorDragon(g, E, Y){
         }
     }
 }
+/* ============================================================
+   PATCH HUD MOBILE — notifikasi tidak menutupi papan
+   ============================================================ */
+(function(){
+    if(document.getElementById('mmc-hud-mobile')) return;
+    const st = document.createElement('style');
+    st.id = 'mmc-hud-mobile';
+    st.textContent = `
+@media (max-width: 900px), (pointer: coarse){
+
+  #game-screen #turn-indicator{
+      top: max(6px, env(safe-area-inset-top)) !important;
+      padding: 4px 12px !important;
+      font-size: .62rem !important;
+      letter-spacing: .5px !important;
+      max-width: 62vw !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      border-radius: 999px !important;
+      z-index: 30 !important;
+  }
+
+  #piece-select-msg{
+      position: fixed !important;
+      top: auto !important;
+      bottom: max(8px, env(safe-area-inset-bottom)) !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      max-width: 88vw !important;
+      padding: 5px 12px !important;
+      font-size: .58rem !important;
+      letter-spacing: .3px !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      border-radius: 999px !important;
+      z-index: 32 !important;
+  }
+
+  #game-screen .player-side{ width: 96px !important; top: 4px !important; }
+  #game-screen .player-side-left{ left: 4px !important; }
+  #game-screen .player-side-right{ right: 4px !important; }
+  #game-screen .player-side .player-info{ min-height: 0 !important; padding: 4px !important; gap: 2px !important; }
+  #game-screen .player-side .info-avatar{ width: 34px !important; height: 34px !important; font-size: 1.1rem !important; }
+  #game-screen .player-side .info-name{ font-size: 9px !important; }
+  #game-screen .player-side .hp-bar-container{ width: 78px !important; height: 5px !important; }
+  #game-screen .player-side .hp-text{ font-size: 8px !important; }
+
+  .ability-badge{
+      font-size: .46rem !important;
+      padding: 2px 6px !important;
+      border-radius: 6px !important;
+  }
+  .player-ability-wrap{ margin-top: 3px !important; }
+}
+
+@media (max-height: 500px) and (pointer: coarse){
+  #game-screen #turn-indicator{ font-size: .54rem !important; padding: 3px 9px !important; }
+  #piece-select-msg{ font-size: .5rem !important; padding: 4px 9px !important; }
+  #game-screen .player-side .info-avatar{ width: 28px !important; height: 28px !important; }
+}
+`;
+    document.head.appendChild(st);
+})();
 </script>
 </body>
 </html>
