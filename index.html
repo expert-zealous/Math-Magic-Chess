@@ -8645,108 +8645,131 @@ function buildDragonCorner(g, sx, sz, E, Y, mStone, mGold, mFire){
     D.scale.setScalar(1.28); // diperbesar
     g.add(D);
 }
-/* ============================================================
-   NAGA FINAL — patung tegak, tanpa tiang, 4 sudut sama
-   ============================================================ */
+
+</script>
+<script id="dragon-png-billboard-v1">
 (function(){
-    window.__dragonMaterials = window.__dragonMaterials || [];
-    if(window.__dragonLoadedFinal) return;
-    window.__dragonLoadedFinal = true;
+    if(window.__MMC_DRAGON_BILLBOARD_V1__) return;
+    window.__MMC_DRAGON_BILLBOARD_V1__ = true;
 
-    new THREE.TextureLoader().load('dragon-corner.png', function(tex){
-        if('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
-        else tex.encoding = THREE.sRGBEncoding;
-        tex.anisotropy = 8;
-        window.__dragonTex = tex;
-        console.log('🐉 naga final siap');
-        window.__dragonMaterials.forEach(function(m){
-            m.map = tex;
-            m.needsUpdate = true;
-        });
-    });
-})();
-
-function buildDragonCorner(g, sx, sz, E, Y, mStone, mGold, mFire){
-    const D = new THREE.Group();
-
-    // --- pedestal batu bertingkat ---
-    const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 1.00, 0.26, 8), mStone);
-    p1.position.y = 0.13; D.add(p1);
-
-    const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.64, 0.78, 0.20, 8), mStone);
-    p2.position.y = 0.33; D.add(p2);
-
-    const ringG = new THREE.Mesh(new THREE.TorusGeometry(0.68, 0.07, 8, 24), mGold);
-    ringG.rotation.x = Math.PI/2;
-    ringG.position.y = 0.43;
-    D.add(ringG);
-
-    // --- sandaran batu tipis (bukan kotak tebal) ---
-    const back = new THREE.Mesh(new THREE.BoxGeometry(2.05, 2.05, 0.05), mStone);
-    back.position.set(0, 1.48, -0.04);
-    D.add(back);
-
-    // bingkai emas ramping
-    const fr = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.05, 8, 4), mGold);
-    fr.rotation.z = Math.PI/4;
-    fr.position.set(0, 1.48, -0.02);
-    D.add(fr);
-
-    // --- GAMBAR NAGA (tegak lurus) ---
-    const mat = new THREE.MeshBasicMaterial({
-        map: window.__dragonTex || null,
-        transparent: true,
-        alphaTest: 0.06,
-        side: THREE.DoubleSide,
-        depthWrite: false
-    });
-    window.__dragonMaterials.push(mat);
-
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(2.00, 2.00), mat);
-    plane.position.set(0, 1.48, 0.03);
-    plane.renderOrder = 8;
-    D.add(plane);
-
-    // --- bara api di kaki ---
-    for(let s=-1; s<=1; s+=2){
-        const e = new THREE.Mesh(new THREE.SphereGeometry(0.10, 10, 10), mFire);
-        e.position.set(s*0.55, 0.52, 0.22);
-        D.add(e);
-    }
-
-    D.position.set(sx*E, Y, sz*E);
-    D.rotation.y = Math.atan2(-sx, -sz);
-    D.scale.setScalar(1.35);
-    g.add(D);
-}
-
-function decorDragon(g, E, Y){
-    const mStone = new THREE.MeshPhongMaterial({
-        color: 0x4E0E0E, specular: 0xFF6644, shininess: 90, emissive: 0x180303
-    });
-    const mGold = new THREE.MeshPhongMaterial({
-        color: 0xD4AF37, specular: 0xFFF3B0, shininess: 140, emissive: 0x2A1600
-    });
-    const mFire = new THREE.MeshPhongMaterial({
-        color: 0xFF4500, emissive: 0xFF2200, emissiveIntensity: 1.6
-    });
-
-    window.__dragonMaterials = [];
-
-    [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function(p){
-        buildDragonCorner(g, p[0], p[1], E-0.02, Y, mStone, mGold, mFire);
-    });
-
-    for(let s=0; s<4; s++){
-        const rot = s*Math.PI/2;
-        for(let i=-3; i<=3; i++){
-            const pos = decorEdgePos(i*1.9, E, rot);
-            const sk = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.30, 5), mStone);
-            sk.position.set(pos.x, Y+0.13, pos.z);
-            g.add(sk);
+    function getTex(){
+        if(window.__dragonBillboardTex && window.__dragonBillboardTex.image){
+            return window.__dragonBillboardTex;
         }
+        const tex = new THREE.Texture();
+        const img = new Image();
+        img.onload = function(){
+            tex.image = img;
+            tex.needsUpdate = true;
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.generateMipmaps = false;
+        };
+        img.src = 'dragon-corner.png';
+        window.__dragonBillboardTex = tex;
+        return tex;
     }
-}
+
+    function faceCamera(mesh){
+        if(typeof camera === 'undefined' || !camera || !mesh.parent) return;
+        mesh.parent.updateMatrixWorld(true);
+        const localCam = camera.position.clone();
+        mesh.parent.worldToLocal(localCam);
+        mesh.lookAt(localCam);
+        mesh.rotateY(Math.PI); // Plane menghadap +Z, lookAt memakai -Z
+    }
+
+    function makeDragonMat(){
+        return new THREE.MeshBasicMaterial({
+            map: getTex(),
+            transparent: true,
+            alphaTest: 0.08,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+    }
+
+    window.buildDragonCorner = function(){};
+    window.buildCornerDragonStatue = function(){};
+    window.buildDragonPiece = function(){};
+
+    window.decorDragon = function(g, E, Y){
+        const goldMat = new THREE.MeshPhongMaterial({
+            color: 0xC5931C, specular: 0xFFDF7A, shininess: 130, emissive: 0x2A1600
+        });
+        const darkMat = new THREE.MeshPhongMaterial({
+            color: 0x3A080A, specular: 0xFF8A6A, shininess: 80, emissive: 0x1A0203
+        });
+        const spikeMat = new THREE.MeshPhongMaterial({
+            color: 0x6A1414, specular: 0xFF7A55, shininess: 90, emissive: 0x1E0404
+        });
+
+        const dragonMat = makeDragonMat();
+
+        for(let s=0;s<4;s++){
+            const rot = s*Math.PI/2;
+            for(let i=-4;i<=4;i++){
+                if(Math.abs(i) >= 4) continue;
+                const p = decorEdgePos(i*1.55, E, rot);
+                const sk = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.24, 5), spikeMat);
+                sk.position.set(p.x, Y+0.12, p.z);
+                g.add(sk);
+            }
+        }
+
+        const C = E - 0.06;
+        const SIZE = 3.6; // perbesar/kecilkan di sini
+        const corners = [[1,1],[1,-1],[-1,1],[-1,-1]];
+
+        corners.forEach(function(pair){
+            const sx = pair[0], sz = pair[1];
+            const D = new THREE.Group();
+
+            const b1 = new THREE.Mesh(new THREE.CylinderGeometry(0.70, 0.84, 0.16, 18), goldMat);
+            b1.position.y = 0.08;
+            D.add(b1);
+            const b2 = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.66, 0.11, 18), darkMat);
+            b2.position.y = 0.21;
+            D.add(b2);
+            const b3 = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.54, 0.07, 18), goldMat);
+            b3.position.y = 0.30;
+            D.add(b3);
+
+            const plane = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), dragonMat);
+            plane.position.set(0, 0.30 + SIZE*0.42, 0);
+            plane.renderOrder = 12;
+            plane.userData.dragonBillboard = true;
+            D.add(plane);
+
+            D.position.set(sx*C, Y, sz*C);
+            g.add(D);
+
+            faceCamera(plane);
+        });
+    };
+
+    function refreshBillboards(){
+        if(typeof scene === 'undefined' || !scene || typeof camera === 'undefined' || !camera) return;
+        scene.traverse(function(o){
+            if(o && o.userData && o.userData.dragonBillboard) faceCamera(o);
+        });
+    }
+
+    if(typeof buildBoardDecor === 'function'){
+        const oldBuild = buildBoardDecor;
+        buildBoardDecor = function(theme){
+            const r = oldBuild.apply(this, arguments);
+            if(theme && theme.decor === 'dragon'){
+                setTimeout(refreshBillboards, 30);
+                setTimeout(refreshBillboards, 200);
+            }
+            return r;
+        };
+    }
+
+    setInterval(refreshBillboards, 800);
+    console.log('Naga PNG billboard v1 aktif');
+})();
 </script>
 </body>
 </html>
