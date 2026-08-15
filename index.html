@@ -2407,8 +2407,121 @@
     cursor: pointer !important;
 }
 </style>
+<style id="orientation-guard-style">
+/* =========================================================
+   MATH MAGIC CHESS - LANDSCAPE ONLY GUARD
+   Portrait = game tidak boleh dimainkan
+   Landscape = game normal
+   Tidak melakukan reload halaman
+   ========================================================= */
+
+#orientation-guard {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+
+    padding: 24px;
+    box-sizing: border-box;
+
+    background:
+        radial-gradient(circle at center,
+            rgba(35, 45, 100, 0.95) 0%,
+            rgba(8, 10, 28, 0.98) 55%,
+            #050611 100%);
+
+    color: #fff;
+    font-family: Arial, sans-serif;
+
+    user-select: none;
+    -webkit-user-select: none;
+
+    touch-action: none;
+}
+
+#orientation-guard.show {
+    display: flex;
+}
+
+.orientation-icon {
+    font-size: clamp(52px, 14vw, 100px);
+    line-height: 1;
+    margin-bottom: 20px;
+
+    animation: orientationRotate 2s ease-in-out infinite;
+}
+
+.orientation-title {
+    font-size: clamp(20px, 5vw, 34px);
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    color: #ffd700;
+}
+
+.orientation-text {
+    max-width: 520px;
+    font-size: clamp(14px, 3vw, 20px);
+    line-height: 1.5;
+    font-weight: 700;
+    color: #f1f1f1;
+}
+
+.orientation-subtext {
+    margin-top: 18px;
+    font-size: clamp(11px, 2.5vw, 15px);
+    color: rgba(255,255,255,.65);
+}
+
+@keyframes orientationRotate {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+
+    50% {
+        transform: rotate(90deg);
+    }
+}
+
+/* Saat portrait, jangan biarkan halaman ikut bergeser */
+html.orientation-blocked,
+body.orientation-blocked {
+    overflow: hidden !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+</style>
 </head>
 <body>
+<!-- =========================================================
+     LANDSCAPE ONLY GUARD
+     ========================================================= -->
+<div id="orientation-guard" aria-hidden="true">
+
+    <div class="orientation-icon">📱↻</div>
+
+    <div class="orientation-title">
+        PUTAR PERANGKAT ANDA
+    </div>
+
+    <div class="orientation-text">
+        Math Magic Chess hanya dapat dimainkan
+        dalam posisi <strong>LANDSCAPE</strong>.
+    </div>
+
+    <div class="orientation-subtext">
+        Silakan putar HP ke samping untuk melanjutkan permainan.
+    </div>
+
+</div>    
 
 <canvas id="particles-canvas"></canvas>
 
@@ -8933,6 +9046,141 @@ function buildDragonCorner(g, sx, sz, E, Y, mStone, mGold, mFire){
 
     setInterval(refreshBillboards, 800);
     console.log('Naga PNG billboard v1 aktif');
+})();
+</script>
+<script id="landscape-only-guard">
+/* =========================================================
+   MATH MAGIC CHESS
+   LANDSCAPE ONLY GUARD
+   ========================================================= */
+
+(function () {
+
+    let portraitBlocked = false;
+    let orientationCheckTimer = null;
+
+    const guard = document.getElementById('orientation-guard');
+
+    if (!guard) {
+        console.warn('[Orientation] Guard element tidak ditemukan.');
+        return;
+    }
+
+    /*
+     * Deteksi orientasi menggunakan ukuran viewport.
+     *
+     * Untuk game ini kita hanya mengizinkan:
+     * width > height
+     */
+    function isLandscape() {
+        return window.innerWidth > window.innerHeight;
+    }
+
+    /*
+     * Tampilkan / sembunyikan layar pengunci.
+     */
+    function updateOrientationGuard() {
+
+        const landscape = isLandscape();
+
+        if (!landscape) {
+
+            if (!portraitBlocked) {
+
+                portraitBlocked = true;
+
+                console.log('[Orientation] PORTRAIT - game diblokir.');
+
+                guard.classList.add('show');
+                guard.setAttribute('aria-hidden', 'false');
+
+                document.documentElement.classList.add('orientation-blocked');
+                document.body.classList.add('orientation-blocked');
+
+            }
+
+        } else {
+
+            if (portraitBlocked) {
+
+                portraitBlocked = false;
+
+                console.log('[Orientation] LANDSCAPE - game dapat dilanjutkan.');
+
+                guard.classList.remove('show');
+                guard.setAttribute('aria-hidden', 'true');
+
+                document.documentElement.classList.remove('orientation-blocked');
+                document.body.classList.remove('orientation-blocked');
+
+                /*
+                 * Beri browser sedikit waktu menyelesaikan perubahan
+                 * viewport sebelum meminta renderer menyesuaikan diri.
+                 *
+                 * TIDAK reload.
+                 */
+                setTimeout(function () {
+
+                    window.dispatchEvent(
+                        new Event('resize')
+                    );
+
+                }, 150);
+            }
+        }
+    }
+
+    /*
+     * Cek pertama saat halaman dibuka.
+     */
+    updateOrientationGuard();
+
+    /*
+     * Perubahan ukuran layar.
+     */
+    window.addEventListener('resize', function () {
+        updateOrientationGuard();
+    }, { passive: true });
+
+    /*
+     * Perubahan orientasi perangkat.
+     */
+    window.addEventListener('orientationchange', function () {
+
+        /*
+         * Jangan langsung menentukan kondisi.
+         * Beberapa HP membutuhkan sedikit waktu sampai
+         * innerWidth / innerHeight benar-benar berubah.
+         */
+        clearTimeout(orientationCheckTimer);
+
+        orientationCheckTimer = setTimeout(function () {
+            updateOrientationGuard();
+        }, 150);
+
+    }, { passive: true });
+
+    /*
+     * Android Chrome kadang mengubah visualViewport
+     * ketika address bar / keyboard berubah.
+     */
+    if (window.visualViewport) {
+
+        window.visualViewport.addEventListener(
+            'resize',
+            function () {
+
+                clearTimeout(orientationCheckTimer);
+
+                orientationCheckTimer = setTimeout(function () {
+                    updateOrientationGuard();
+                }, 100);
+
+            },
+            { passive: true }
+        );
+    }
+
 })();
 </script>
 </body>
